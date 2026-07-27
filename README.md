@@ -37,6 +37,7 @@ surface are working and tested. The other surfaces are planned and tracked in
 | Python library (core + application) | Working, tested |
 | Command line (`cost-running`) | Working, tested: `init`, `validate`, `render`, `measure` |
 | Local hardware detection and grounded extrapolation | Working, tested |
+| Community catalog (hardware + services), `hardware`/`service` list and add | Working, tested. See [`docs/en/catalog.md`](docs/en/catalog.md) |
 | Command line: `diff`, `audit` | Planned |
 | HTTP API (FastAPI) | Planned |
 | MCP server | Planned |

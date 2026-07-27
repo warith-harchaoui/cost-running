@@ -21,64 +21,19 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from . import registry
+
 # Memory draws roughly this many watts per gigabyte (DDR3/DDR4 average, Karyakin
 # and Salem 2017). Small next to a GPU, but not zero for a large-memory node.
 MEMORY_POWER_W_PER_GB: float = 0.3725
 
-# Per-core CPU power (thermal design power divided by core count), in watts.
-CPU_W_PER_CORE: dict[str, float] = {
-    "xeon-platinum-8175": 10.0,  # 240 W / 24 cores
-    "xeon-gold-6248": 7.5,  # 150 W / 20 cores
-    "epyc-7742": 3.5,  # 225 W / 64 cores
-    "epyc-9654": 3.75,  # 360 W / 96 cores
-    "apple-m-series": 4.5,
-    "default-server-cpu": 12.0,
-    "default-desktop-cpu": 15.0,
-}
-
-# Whole-device GPU thermal design power (watts), vendor datasheet SXM/OAM figures
-# at the default power cap. Kept current with mainstream accelerators.
-GPU_TDP_W: dict[str, float] = {
-    "T4": 70,
-    "L4": 72,
-    "L40S": 350,
-    "P100": 250,
-    "V100": 300,
-    "A100": 400,
-    "A100-40GB": 400,
-    "A100-80GB": 400,
-    "H100": 700,
-    "H100-SXM": 700,
-    "H200": 700,
-    "B100": 700,  # NVIDIA Blackwell
-    "B200": 1000,  # NVIDIA Blackwell
-    "MI250X": 560,
-    "MI300X": 750,
-    "MI325X": 1000,  # AMD CDNA3
-    "TPU-v4": 170,
-}
-
-# Peak dense BF16 throughput (TFLOP/s), vendor-rated. Used only to re-base the
-# *runtime* of a compute-bound workload onto another accelerator: the same work
-# (a fixed number of floating-point operations) takes less time on a faster chip.
-# This is a throughput ratio, not a power number, and it is meaningful only for
-# compute-bound work at comparable utilisation (see the extrapolation module).
-GPU_PEAK_BF16_TFLOPS: dict[str, float] = {
-    "V100": 125,
-    "A100": 312,
-    "A100-40GB": 312,
-    "A100-80GB": 312,
-    "H100": 989,
-    "H100-SXM": 989,
-    "H200": 989,
-    "B100": 1800,  # NVIDIA Blackwell (dense BF16)
-    "B200": 2250,  # NVIDIA Blackwell (dense BF16)
-    "L4": 121,
-    "L40S": 362,
-    "MI300X": 1307,
-    "MI325X": 1307,  # AMD CDNA3 (same compute die as MI300X)
-    "TPU-v4": 275,
-}
+# The device power and throughput tables are loaded from the catalog
+# (data/hardware.yaml, plus any overlay), not hard-coded here, so a new chip is
+# added by appending a provenance-carrying row rather than editing this module.
+# They are read once at import; a fresh process picks up catalog additions.
+CPU_W_PER_CORE: dict[str, float] = registry.cpu_w_per_core()
+GPU_TDP_W: dict[str, float] = registry.gpu_tdp_w()
+GPU_PEAK_BF16_TFLOPS: dict[str, float] = registry.gpu_peak_bf16_tflops()
 
 # Power usage effectiveness: the multiplier for datacenter overhead (cooling,
 # power delivery). A laptop is close to 1; a hyperscale datacenter is efficient;

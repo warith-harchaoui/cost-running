@@ -1,0 +1,108 @@
+# Service registry: known paid APIs, where to price them, and how to detect them.
+# ------------------------------------------------------------------------------
+# Deliberately, this file does NOT hard-code prices. API pricing is volatile, and
+# a stale number shipped as authoritative is exactly the dishonesty the tool
+# exists to prevent. Instead each row records what the service is, how to detect
+# its use in code, and the pricing page where the current number lives. A price
+# is fetched at `cost-running service add`/audit time, stored with its own
+# retrieved_date in the project overlay, and warned about when it goes stale.
+
+schema_version: "1.0"
+
+services:
+  # --- LLM and inference APIs ---
+  - key: openai
+    name: "OpenAI API"
+    category: llm
+    detect: ["openai", "from openai", "OpenAI("]
+    pricing_source_url: "https://openai.com/api/pricing/"
+    unit_hint: "USD per 1M input/output tokens"
+    oss_alternatives: ["Ollama", "vLLM", "LM Studio"]
+  - key: anthropic
+    name: "Anthropic API"
+    category: llm
+    detect: ["anthropic", "from anthropic", "Anthropic("]
+    pricing_source_url: "https://www.anthropic.com/pricing"
+    unit_hint: "USD per 1M input/output tokens"
+    oss_alternatives: ["Ollama", "vLLM"]
+  - key: google-gemini
+    name: "Google Gemini API"
+    category: llm
+    detect: ["google.generativeai", "google-genai", "genai"]
+    pricing_source_url: "https://ai.google.dev/pricing"
+    unit_hint: "USD per 1M tokens"
+    oss_alternatives: ["Ollama", "vLLM"]
+  - key: mistral
+    name: "Mistral API"
+    category: llm
+    detect: ["mistralai", "from mistralai"]
+    pricing_source_url: "https://mistral.ai/pricing/"
+    unit_hint: "USD per 1M tokens"
+    oss_alternatives: ["Ollama", "vLLM"]
+  - key: cohere
+    name: "Cohere API"
+    category: llm
+    detect: ["cohere", "import cohere"]
+    pricing_source_url: "https://cohere.com/pricing"
+    unit_hint: "USD per 1M tokens"
+    oss_alternatives: ["Ollama", "Text Generation WebUI"]
+  - key: replicate
+    name: "Replicate"
+    category: inference
+    detect: ["replicate", "import replicate"]
+    pricing_source_url: "https://replicate.com/pricing"
+    unit_hint: "USD per second of hardware time"
+    oss_alternatives: ["Self-hosted model server (vLLM, TGI)"]
+  - key: huggingface-inference
+    name: "Hugging Face Inference"
+    category: inference
+    detect: ["huggingface_hub", "InferenceClient"]
+    pricing_source_url: "https://huggingface.co/pricing"
+    unit_hint: "USD per hour or per request"
+    oss_alternatives: ["Self-hosted transformers / TGI"]
+
+  # --- Cloud provider SDKs (metered many ways; price at the service level) ---
+  - key: aws
+    name: "AWS (boto3)"
+    category: cloud
+    detect: ["boto3", "botocore"]
+    pricing_source_url: "https://aws.amazon.com/pricing/"
+    unit_hint: "Varies by service (compute, storage, egress)"
+    oss_alternatives: []
+  - key: gcp
+    name: "Google Cloud"
+    category: cloud
+    detect: ["google.cloud"]
+    pricing_source_url: "https://cloud.google.com/pricing"
+    unit_hint: "Varies by service"
+    oss_alternatives: []
+  - key: azure
+    name: "Microsoft Azure"
+    category: cloud
+    detect: ["azure.", "azure-"]
+    pricing_source_url: "https://azure.microsoft.com/en-us/pricing/"
+    unit_hint: "Varies by service"
+    oss_alternatives: []
+
+  # --- Other metered third-party APIs ---
+  - key: stripe
+    name: "Stripe API"
+    category: payments
+    detect: ["stripe", "import stripe"]
+    pricing_source_url: "https://stripe.com/pricing"
+    unit_hint: "Percentage plus fixed fee per transaction"
+    oss_alternatives: []
+  - key: twilio
+    name: "Twilio API"
+    category: messaging
+    detect: ["twilio", "from twilio"]
+    pricing_source_url: "https://www.twilio.com/en-us/pricing"
+    unit_hint: "USD per message or per minute"
+    oss_alternatives: []
+  - key: sendgrid
+    name: "SendGrid API"
+    category: email
+    detect: ["sendgrid", "from sendgrid"]
+    pricing_source_url: "https://sendgrid.com/en-us/pricing"
+    unit_hint: "USD per email volume tier"
+    oss_alternatives: ["Postal", "self-hosted SMTP"]

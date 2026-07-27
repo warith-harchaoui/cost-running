@@ -5,6 +5,22 @@ All notable changes to cost-running are recorded here. Categories: `Added`,
 
 ## Unreleased
 
+### Added (catalog increment)
+
+- **Data-driven catalog.** Device power and throughput, and the paid-service
+  registry, moved from hard-coded dicts into provenance-carrying YAML
+  (`data/hardware.yaml`, `data/services.yaml`). Every row states its source and
+  retrieval date. The service catalog deliberately ships no prices, only where to
+  price each service, because pricing is volatile.
+- **A growing, community catalog.** A writable overlay merges over the bundled
+  catalog using the same schema, so a locally added row can be promoted upstream
+  unchanged. `cost-running hardware add` and `service add` refuse any entry
+  without provenance; `hardware list --stale` / `service list --stale` surface
+  rows due for a refresh. The intended growth path is an agent-prepared,
+  user-authored pull request carrying the sourced row plus the code snippet that
+  triggered the detection, reviewed before merge. Documented in
+  `docs/en/catalog.md`.
+
 ### Added (measurement increment)
 
 - **`measure` use case and CLI verb.** Runs a command, times it, and reads what

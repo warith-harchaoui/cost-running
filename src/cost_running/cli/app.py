@@ -32,6 +32,7 @@ from pathlib import Path
 from .. import __version__
 from ..application import load_model, render_markdown, validate_model, write_text
 from ..application.measure import measure_command
+from ..infrastructure import registry
 from ..templates import get_template_text
 
 # Diagnostics go through the logger to stderr; the documented result of a command
@@ -178,6 +179,95 @@ def _cmd_measure(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_hardware_list(args: argparse.Namespace) -> int:
+    """Print the hardware catalog as JSON, optionally only the stale rows.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments with ``stale``.
+
+    Returns
+    -------
+    int
+        Always ``0``.
+    """
+    catalog = registry.hardware_catalog()
+    # When --stale is set, show only rows whose provenance needs a refresh.
+    if args.stale:
+        catalog = {
+            kind: {k: row for k, row in rows.items() if registry.is_stale(row)}
+            for kind, rows in catalog.items()
+        }
+    print(json.dumps(catalog, indent=2, default=str))
+    return EXIT_OK
+
+
+def _cmd_hardware_add(args: argparse.Namespace) -> int:
+    """Add a hardware row to the overlay catalog (provenance required).
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments carrying the device figures and provenance.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``2`` when the entry is rejected (missing provenance).
+    """
+    # Build the row from the flags, dropping the ones the user did not supply.
+    entry: dict[str, object] = {"key": args.key}
+    for field_name, value in (
+        ("tdp_w", args.tdp_w),
+        ("peak_bf16_tflops", args.peak_bf16_tflops),
+        ("w_per_core", args.w_per_core),
+        ("source_url", args.source_url),
+        ("retrieved_date", args.retrieved_date),
+        ("notes", args.notes),
+    ):
+        if value is not None:
+            entry[field_name] = value
+    device_kind = "gpus" if args.kind == "gpu" else "cpus"
+    try:
+        target = registry.add_hardware(device_kind, entry)
+    except ValueError as exc:
+        # A missing key or provenance is a usage error, reported clearly.
+        logger.error("Cannot add hardware: %s", exc)
+        return EXIT_USAGE
+    logger.info("Added %s %r to %s", args.kind, args.key, target)
+    return EXIT_OK
+
+
+def _cmd_service_list(args: argparse.Namespace) -> int:
+    """Print the service catalog as JSON, optionally only the stale rows."""
+    catalog = registry.service_catalog()
+    if args.stale:
+        catalog = {k: row for k, row in catalog.items() if registry.is_stale(row)}
+    print(json.dumps(catalog, indent=2, default=str))
+    return EXIT_OK
+
+
+def _cmd_service_add(args: argparse.Namespace) -> int:
+    """Add a service row to the overlay catalog (pricing source required)."""
+    entry: dict[str, object] = {"key": args.key, "name": args.name}
+    for field_name, value in (
+        ("category", args.category),
+        ("pricing_source_url", args.pricing_source_url),
+        ("unit_hint", args.unit_hint),
+        ("retrieved_date", args.retrieved_date),
+    ):
+        if value is not None:
+            entry[field_name] = value
+    try:
+        target = registry.add_service(entry)
+    except ValueError as exc:
+        logger.error("Cannot add service: %s", exc)
+        return EXIT_USAGE
+    logger.info("Added service %r to %s", args.key, target)
+    return EXIT_OK
+
+
 def make_parser() -> argparse.ArgumentParser:
     """Build the CLI parser without executing anything.
 
@@ -230,6 +320,42 @@ def make_parser() -> argparse.ArgumentParser:
         help="The command to run, e.g. `-- python detect.py`.",
     )
     measure_parser.set_defaults(func=_cmd_measure)
+
+    # hardware: inspect or grow the device catalog.
+    hardware_parser = subparsers.add_parser(
+        "hardware", help="Inspect or grow the hardware catalog."
+    )
+    hardware_sub = hardware_parser.add_subparsers(dest="hardware_command", required=True)
+    hw_list = hardware_sub.add_parser("list", help="Print the hardware catalog.")
+    hw_list.add_argument("--stale", action="store_true", help="Show only rows needing a refresh.")
+    hw_list.set_defaults(func=_cmd_hardware_list)
+    hw_add = hardware_sub.add_parser("add", help="Add a device (provenance required).")
+    hw_add.add_argument("--kind", choices=["gpu", "cpu"], required=True)
+    hw_add.add_argument("--key", required=True, help="Stable device key, e.g. H20.")
+    hw_add.add_argument("--tdp-w", type=float, help="Whole-device TDP in watts (GPU).")
+    hw_add.add_argument("--peak-bf16-tflops", type=float, help="Dense BF16 throughput (GPU).")
+    hw_add.add_argument("--w-per-core", type=float, help="Power per core in watts (CPU).")
+    hw_add.add_argument("--source-url", required=True, help="Datasheet or product-page URL.")
+    hw_add.add_argument("--retrieved-date", required=True, help="YYYY-MM-DD the source was read.")
+    hw_add.add_argument("--notes", help="Short provenance note.")
+    hw_add.set_defaults(func=_cmd_hardware_add)
+
+    # service: inspect or grow the paid-service catalog.
+    service_parser = subparsers.add_parser(
+        "service", help="Inspect or grow the paid-service catalog."
+    )
+    service_sub = service_parser.add_subparsers(dest="service_command", required=True)
+    svc_list = service_sub.add_parser("list", help="Print the service catalog.")
+    svc_list.add_argument("--stale", action="store_true", help="Show only rows needing a refresh.")
+    svc_list.set_defaults(func=_cmd_service_list)
+    svc_add = service_sub.add_parser("add", help="Add a service (pricing source required).")
+    svc_add.add_argument("--key", required=True, help="Stable service key, e.g. openai.")
+    svc_add.add_argument("--name", required=True, help="Human-readable service name.")
+    svc_add.add_argument("--category", help="e.g. llm, cloud, payments.")
+    svc_add.add_argument("--pricing-source-url", required=True, help="The pricing page URL.")
+    svc_add.add_argument("--unit-hint", help="How it is metered, e.g. USD per 1M tokens.")
+    svc_add.add_argument("--retrieved-date", required=True, help="YYYY-MM-DD the price was read.")
+    svc_add.set_defaults(func=_cmd_service_add)
 
     return parser
 

@@ -1,0 +1,136 @@
+# Hardware registry: the source of truth for device power and throughput.
+# -----------------------------------------------------------------------
+# Each row carries provenance (source_url + retrieved_date) because a hardware
+# figure is a sourced value like any other, not folklore. Numeric values are
+# vendor-datasheet figures (SXM/OAM at the default power cap; dense BF16 for
+# throughput). The seed source_url values point at the vendor product pages and
+# should be verified and deep-linked through the `cost-running hardware add`
+# web-search flow as the catalogue grows.
+
+schema_version: "1.0"
+
+gpus:
+  - key: T4
+    tdp_w: 70
+    source_url: "https://www.nvidia.com/en-us/data-center/tesla-t4/"
+    retrieved_date: "2026-07-27"
+  - key: L4
+    tdp_w: 72
+    peak_bf16_tflops: 121
+    source_url: "https://www.nvidia.com/en-us/data-center/l4/"
+    retrieved_date: "2026-07-27"
+  - key: L40S
+    tdp_w: 350
+    peak_bf16_tflops: 362
+    source_url: "https://www.nvidia.com/en-us/data-center/l40s/"
+    retrieved_date: "2026-07-27"
+  - key: P100
+    tdp_w: 250
+    source_url: "https://www.nvidia.com/en-us/data-center/tesla-p100/"
+    retrieved_date: "2026-07-27"
+  - key: V100
+    tdp_w: 300
+    peak_bf16_tflops: 125
+    source_url: "https://www.nvidia.com/en-us/data-center/v100/"
+    retrieved_date: "2026-07-27"
+  - key: A100
+    tdp_w: 400
+    peak_bf16_tflops: 312
+    source_url: "https://www.nvidia.com/en-us/data-center/a100/"
+    retrieved_date: "2026-07-27"
+    notes: "SXM4, dense BF16. A100-40GB and A100-80GB share these figures."
+  - key: A100-40GB
+    tdp_w: 400
+    peak_bf16_tflops: 312
+    source_url: "https://www.nvidia.com/en-us/data-center/a100/"
+    retrieved_date: "2026-07-27"
+  - key: A100-80GB
+    tdp_w: 400
+    peak_bf16_tflops: 312
+    source_url: "https://www.nvidia.com/en-us/data-center/a100/"
+    retrieved_date: "2026-07-27"
+  - key: H100
+    tdp_w: 700
+    peak_bf16_tflops: 989
+    source_url: "https://www.nvidia.com/en-us/data-center/h100/"
+    retrieved_date: "2026-07-27"
+    notes: "SXM5, dense BF16."
+  - key: H100-SXM
+    tdp_w: 700
+    peak_bf16_tflops: 989
+    source_url: "https://www.nvidia.com/en-us/data-center/h100/"
+    retrieved_date: "2026-07-27"
+  - key: H200
+    tdp_w: 700
+    peak_bf16_tflops: 989
+    source_url: "https://www.nvidia.com/en-us/data-center/h200/"
+    retrieved_date: "2026-07-27"
+  - key: B100
+    tdp_w: 700
+    peak_bf16_tflops: 1800
+    source_url: "https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/"
+    retrieved_date: "2026-07-27"
+    notes: "NVIDIA Blackwell, SXM, dense BF16."
+  - key: B200
+    tdp_w: 1000
+    peak_bf16_tflops: 2250
+    source_url: "https://www.nvidia.com/en-us/data-center/technologies/blackwell-architecture/"
+    retrieved_date: "2026-07-27"
+    notes: "NVIDIA Blackwell, SXM, dense BF16."
+  - key: MI250X
+    tdp_w: 560
+    source_url: "https://www.amd.com/en/products/accelerators/instinct/mi200/mi250x.html"
+    retrieved_date: "2026-07-27"
+  - key: MI300X
+    tdp_w: 750
+    peak_bf16_tflops: 1307
+    source_url: "https://www.amd.com/en/products/accelerators/instinct/mi300/mi300x.html"
+    retrieved_date: "2026-07-27"
+  - key: MI325X
+    tdp_w: 1000
+    peak_bf16_tflops: 1307
+    source_url: "https://www.amd.com/en/products/accelerators/instinct/mi300/mi325x.html"
+    retrieved_date: "2026-07-27"
+    notes: "AMD CDNA3, same compute die as MI300X."
+  - key: TPU-v4
+    tdp_w: 170
+    peak_bf16_tflops: 275
+    source_url: "https://cloud.google.com/tpu/docs/v4"
+    retrieved_date: "2026-07-27"
+
+cpus:
+  - key: xeon-platinum-8175
+    w_per_core: 10.0
+    source_url: "https://www.intel.com/content/www/us/en/products/sku/120504/"
+    retrieved_date: "2026-07-27"
+    notes: "240 W TDP / 24 cores."
+  - key: xeon-gold-6248
+    w_per_core: 7.5
+    source_url: "https://www.intel.com/content/www/us/en/products/sku/192446/"
+    retrieved_date: "2026-07-27"
+    notes: "150 W TDP / 20 cores."
+  - key: epyc-7742
+    w_per_core: 3.5
+    source_url: "https://www.amd.com/en/products/cpu/amd-epyc-7742"
+    retrieved_date: "2026-07-27"
+    notes: "225 W TDP / 64 cores."
+  - key: epyc-9654
+    w_per_core: 3.75
+    source_url: "https://www.amd.com/en/products/cpu/amd-epyc-9654"
+    retrieved_date: "2026-07-27"
+    notes: "360 W TDP / 96 cores."
+  - key: apple-m-series
+    w_per_core: 4.5
+    source_url: "https://www.apple.com/mac/"
+    retrieved_date: "2026-07-27"
+    notes: "Approximate active power per performance core; integrated SoC."
+  - key: default-server-cpu
+    w_per_core: 12.0
+    source_url: "internal-default"
+    retrieved_date: "2026-07-27"
+    notes: "Generic fallback when the CPU is unrecognised."
+  - key: default-desktop-cpu
+    w_per_core: 15.0
+    source_url: "internal-default"
+    retrieved_date: "2026-07-27"
+    notes: "Generic fallback for an unrecognised desktop or laptop CPU."
