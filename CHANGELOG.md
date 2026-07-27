@@ -5,6 +5,19 @@ All notable changes to cost-running are recorded here. Categories: `Added`,
 
 ## Unreleased
 
+### Added (audit increment)
+
+- **`audit` use case and CLI verb.** Scans a repository and scaffolds a cost
+  model: it counts languages, infers an archetype (inference, training, service,
+  CLI, ETL, frontend), seeds the compute assumptions from archetype defaults
+  (labelled estimated), and marks the whole output `scaffold`.
+- **Paid-service detection wired to the catalog.** Code is matched against the
+  service catalog's detection hints; each detected service gets a pricing block
+  prefilled with the provider's pricing page and left with the price and the
+  per-unit consumption as sourced TODOs, so completing it is a short, guided
+  step. Detection keeps the matching line of code as evidence for a later
+  contribution.
+
 ### Added (catalog increment)
 
 - **Data-driven catalog.** Device power and throughput, and the paid-service

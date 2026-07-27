@@ -38,7 +38,8 @@ surface are working and tested. The other surfaces are planned and tracked in
 | Command line (`cost-running`) | Working, tested: `init`, `validate`, `render`, `measure` |
 | Local hardware detection and grounded extrapolation | Working, tested |
 | Community catalog (hardware + services), `hardware`/`service` list and add | Working, tested. See [`docs/en/catalog.md`](docs/en/catalog.md) |
-| Command line: `diff`, `audit` | Planned |
+| `audit` (languages, archetype, paid-service detection with prefilled pricing) | Working, tested |
+| Command line: `diff` | Planned |
 | HTTP API (FastAPI) | Planned |
 | MCP server | Planned |
 | GUI | Planned |

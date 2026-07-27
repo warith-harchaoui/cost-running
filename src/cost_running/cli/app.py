@@ -30,7 +30,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .. import __version__
-from ..application import load_model, render_markdown, validate_model, write_text
+from ..application import dump_model_yaml, load_model, render_markdown, validate_model, write_text
+from ..application.audit import audit_repo
 from ..application.measure import measure_command
 from ..infrastructure import registry
 from ..templates import get_template_text
@@ -179,6 +180,40 @@ def _cmd_measure(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_audit(args: argparse.Namespace) -> int:
+    """Scan a repository and write a scaffold cost model.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments with ``path``, ``output``, and ``json``.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``2`` when the path is not a directory.
+    """
+    try:
+        result = audit_repo(args.path)
+    except (NotADirectoryError, OSError) as exc:
+        logger.error("Cannot audit %s: %s", args.path, exc)
+        return EXIT_USAGE
+
+    # Write the scaffold model so it can be reviewed and committed next to the code.
+    write_text(args.output, dump_model_yaml(result.model))
+    logger.info(
+        "Scaffolded %s (archetype: %s, services: %s) -> %s",
+        result.name,
+        result.archetype,
+        ", ".join(sorted({h.key for h in result.service_hits})) or "none",
+        args.output,
+    )
+    # The report is the machine-readable summary; emit it to stdout on request.
+    if args.json:
+        print(json.dumps(result.report(), indent=2, default=str))
+    return EXIT_OK
+
+
 def _cmd_hardware_list(args: argparse.Namespace) -> int:
     """Print the hardware catalog as JSON, optionally only the stale rows.
 
@@ -320,6 +355,19 @@ def make_parser() -> argparse.ArgumentParser:
         help="The command to run, e.g. `-- python detect.py`.",
     )
     measure_parser.set_defaults(func=_cmd_measure)
+
+    # audit: scan a repository and scaffold a cost model.
+    audit_parser = subparsers.add_parser(
+        "audit", help="Scan a repository and scaffold a cost model."
+    )
+    audit_parser.add_argument("path", help="Path to the repository to scan.")
+    audit_parser.add_argument(
+        "--output", default="cost_of_running.yaml", help="Where to write the scaffold model."
+    )
+    audit_parser.add_argument(
+        "--json", action="store_true", help="Also print the audit report to stdout."
+    )
+    audit_parser.set_defaults(func=_cmd_audit)
 
     # hardware: inspect or grow the device catalog.
     hardware_parser = subparsers.add_parser(
