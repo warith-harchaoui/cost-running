@@ -23,6 +23,7 @@ Project maintainers.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
 from collections.abc import Sequence
@@ -30,6 +31,7 @@ from pathlib import Path
 
 from .. import __version__
 from ..application import load_model, render_markdown, validate_model, write_text
+from ..application.measure import measure_command
 from ..templates import get_template_text
 
 # Diagnostics go through the logger to stderr; the documented result of a command
@@ -143,6 +145,39 @@ def _cmd_render(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_measure(args: argparse.Namespace) -> int:
+    """Run a command and print its measured cost as JSON.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments with ``command`` (the argv to run) and an optional
+        ``grid_gco2e_per_kwh``.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``2`` when no command was supplied.
+    """
+    # argparse.REMAINDER captures the command; a leading "--" separator is common
+    # and should be dropped so `measure -- python x.py` works.
+    command = list(args.command)
+    if command and command[0] == "--":
+        command = command[1:]
+    if not command:
+        logger.error("Provide a command to measure, e.g. `cost-running measure -- python x.py`.")
+        return EXIT_USAGE
+
+    result = measure_command(command, grid_gco2e_per_kwh=args.grid_gco2e_per_kwh)
+    # Diagnostics (warnings, the honesty of the power figure) go to stderr.
+    for warning in result.warnings:
+        logger.warning("warning: %s", warning)
+    logger.info("power is %s (source: %s).", result.power_status, result.power_source)
+    # The measurement itself is the machine-readable result: stdout, as JSON.
+    print(json.dumps(result.to_dict(), indent=2, default=str))
+    return EXIT_OK
+
+
 def make_parser() -> argparse.ArgumentParser:
     """Build the CLI parser without executing anything.
 
@@ -177,6 +212,24 @@ def make_parser() -> argparse.ArgumentParser:
     render_parser.add_argument("input", help="Path to the YAML cost model.")
     render_parser.add_argument("--output", help="Write here instead of stdout.")
     render_parser.set_defaults(func=_cmd_render)
+
+    # measure: run a command and report its measured cost as JSON.
+    measure_parser = subparsers.add_parser(
+        "measure", help="Run a command and measure its cost on this machine."
+    )
+    measure_parser.add_argument(
+        "--grid-gco2e-per-kwh",
+        type=float,
+        default=None,
+        help="Grid carbon intensity for the carbon figure (sourced value; omit to skip carbon).",
+    )
+    # REMAINDER captures the command and its flags verbatim after a `--`.
+    measure_parser.add_argument(
+        "command",
+        nargs=argparse.REMAINDER,
+        help="The command to run, e.g. `-- python detect.py`.",
+    )
+    measure_parser.set_defaults(func=_cmd_measure)
 
     return parser
 

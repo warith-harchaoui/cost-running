@@ -5,6 +5,23 @@ All notable changes to cost-running are recorded here. Categories: `Added`,
 
 ## Unreleased
 
+### Added (measurement increment)
+
+- **`measure` use case and CLI verb.** Runs a command, times it, and reads what
+  the machine can physically report: CPU time and peak memory from `getrusage`,
+  and package energy from the Intel RAPL counter when available. Power is
+  labelled `measured` only when a counter produced it, `estimated` otherwise,
+  and the result records the local hardware it ran on.
+- **Local hardware detection** (`infrastructure/hardware.py`) via low-level OS
+  commands (sysctl, `/proc`, `lscpu`, `nvidia-smi`), mapped to the power tables.
+- **Green Algorithms estimator** (`infrastructure/green_algorithms.py`): active
+  power, energy, and carbon, with CPU/GPU TDP tables (including Blackwell
+  B100/B200 and AMD MI325X) and BF16 throughput figures.
+- **Grounded extrapolation** (`application/extrapolate.py`): re-bases a measured
+  GPU runtime onto another accelerator by the peak-throughput ratio, not a naive
+  power swap. Every result carries its model, assumptions, and limits, and the
+  model refuses to answer outside its compute-bound regime.
+
 ### Added
 
 - **Project foundation.** A fresh, wide-sense successor to the `nexteco`

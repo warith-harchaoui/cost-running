@@ -35,8 +35,9 @@ surface are working and tested. The other surfaces are planned and tracked in
 | Surface | State |
 |---|---|
 | Python library (core + application) | Working, tested |
-| Command line (`cost-running`) | Working, tested: `init`, `validate`, `render` |
-| Command line: `diff`, `audit`, `measure` | Planned |
+| Command line (`cost-running`) | Working, tested: `init`, `validate`, `render`, `measure` |
+| Local hardware detection and grounded extrapolation | Working, tested |
+| Command line: `diff`, `audit` | Planned |
 | HTTP API (FastAPI) | Planned |
 | MCP server | Planned |
 | GUI | Planned |
