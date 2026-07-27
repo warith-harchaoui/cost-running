@@ -1,0 +1,37 @@
+# Python build and cache artefacts.
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+
+# Test and tooling caches.
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local environments.
+.venv/
+venv/
+env-for-cost-running/
+
+# Editor and OS noise.
+.DS_Store
+.idea/
+.vscode/
+
+# Local configuration and secrets. Committed *.example files stay tracked.
+*.env
+*.local.yaml
+*.local.yml
+secrets.yaml
+secrets.yml
+!*.env.example
+!*.yaml.example
+!*.yml.example
+
+# Private working notes (kept out of the public repository).
+.private/

@@ -1,0 +1,18 @@
+# Minimal Conda wrapper.
+#
+# Kept intentionally small: Conda provides only the Python interpreter and pip.
+# Every Python package is owned by requirements.txt / requirements-dev.txt, which
+# are shared with venv, Docker, and CI so no dependency version can drift.
+#
+#   conda env create -f environment.yaml
+#   conda activate env-for-cost-running
+#   python -m pip install -r requirements-dev.txt
+name: env-for-cost-running
+channels:
+  - conda-forge
+dependencies:
+  # Pin the supported Python minor version so contributors reproduce CI.
+  - python=3.12
+  - pip
+  - pip:
+      - -r requirements-dev.txt

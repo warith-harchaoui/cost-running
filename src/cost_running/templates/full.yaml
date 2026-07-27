@@ -1,0 +1,92 @@
+# =======================================================================
+# cost-running - full annotated cost model
+# =======================================================================
+# A worked example. Every sourced value carries source_url + retrieved_date.
+# The values below are illustrative; replace the sources and dates with your own
+# before trusting any number. Statuses are honest: estimated values are sourced,
+# never presented as measured.
+
+schema_version: "1.0"
+
+date_updated: "2026-07-27"
+
+canonical_unit_of_work:
+  name: "one inference on a representative input"
+  description: "A single forward pass on the median-sized request."
+  status: "estimated"
+  out_of_scope:
+    - "Model training and fine-tuning."
+    - "Client-side rendering of the result."
+
+deployment:
+  provider: "on-prem"
+  instance_type: "single-A100-node"
+  region: "eu-west (Paris)"
+  country: "FR"
+  operating_system: "Ubuntu 22.04 LTS"
+
+assumptions:
+  average_power_draw_watts:
+    value: 405.96
+    unit: "W"
+    status: "estimated"
+    notes: "1 A100 (400 W TDP) + 16 GB memory x 0.3725 W/GB (Green Algorithms)."
+  electricity_price_usd_per_kwh:
+    value: 0.28
+    unit: "USD/kWh"
+    status: "estimated"
+    source_url: "https://www.globalpetrolprices.com/electricity_prices/"
+    retrieved_date: "2026-07-27"
+  grid_carbon_intensity_gco2e_per_kwh:
+    value: 55
+    unit: "gCO2e/kWh"
+    status: "estimated"
+    source_url: "https://app.electricitymaps.com/zone/FR"
+    retrieved_date: "2026-07-27"
+
+pricing:
+  external_apis: []
+
+scenario:
+  name: "default"
+  runtime_seconds:
+    value: 0.1
+    unit: "s"
+    status: "estimated"
+    notes: "Replace with a measured value from `cost-running measure`."
+  local_compute:
+    energy_kwh:
+      value: 1.28e-05
+      status: "estimated"
+      notes: "runtime_h x power x PUE / 1000 (Green Algorithms)."
+    electricity_cost_usd:
+      value: 3.58e-06
+      status: "estimated"
+    carbon_gco2e:
+      value: 7.04e-04
+      status: "estimated"
+    water_liters:
+      value: null
+      status: "TODO"
+      notes: "Add only when a sourced water usage effectiveness (WUE) exists."
+  external_api_cost_usd:
+    value: 0.0
+    unit: "USD"
+    status: "placeholder"
+  totals:
+    total_cost_usd:
+      value: 3.58e-06
+      status: "estimated"
+    total_carbon_gco2e:
+      value: 7.04e-04
+      status: "estimated"
+
+exclusions:
+  - "Embodied hardware carbon (manufacturing) is not counted by default."
+  - "Datacenter construction and end-user devices are out of scope."
+  - "Storage and network egress are excluded unless materially relevant."
+
+provenance_rules:
+  - "Any sourced value carries source_url and retrieved_date."
+  - "A derived value never claims a stronger status than its weakest input."
+  - "Country is never guessed from the developer's locale; confirm it."

@@ -1,0 +1,102 @@
+# Packaging and tool configuration for cost-running.
+#
+# cost-running is the definitive, wide-sense tool for measuring the cost of
+# running code: money, time, energy, carbon, water, and any extra dimension a
+# team registers, reported per canonical unit of work and always carrying an
+# honesty label (measured / estimated / placeholder / TODO). The package is a
+# superset of the earlier `nexteco` prototype, restructured into a shared core
+# with thin delivery-surface adapters (library, CLI, HTTP, MCP, GUI, Skill).
+#
+# pyproject.toml is the single source of truth for dependencies; requirements
+# files install from here so no second list can drift.
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cost-running"
+version = "0.1.0"
+description = "Wide-sense cost-of-running-code tooling: money, time, energy, carbon, water per canonical unit, with an honesty taxonomy and a locked schema."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Unlicense" }
+authors = [{ name = "Warith Harchaoui" }]
+keywords = [
+    "cost of running",
+    "carbon footprint",
+    "green software",
+    "sustainability",
+    "energy",
+    "AI inference",
+    "measurement",
+    "Green Algorithms",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: Public Domain",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Scientific/Engineering",
+]
+
+# Runtime dependencies are intentionally minimal so the core library and CLI
+# install everywhere. PyYAML parses the cost-model files; platformdirs finds a
+# per-user cache directory portably.
+dependencies = [
+    "PyYAML>=6.0",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+# The HTTP and MCP surfaces are optional: a user who only wants the library,
+# CLI, or Skill should not have to install a web stack.
+api = ["fastapi>=0.110", "uvicorn>=0.29"]
+mcp = ["fastapi>=0.110", "uvicorn>=0.29", "fastapi-mcp>=0.1"]
+all = ["fastapi>=0.110", "uvicorn>=0.29", "fastapi-mcp>=0.1"]
+
+[project.scripts]
+# The CLI is installed under a kebab-case console script, as the standard asks.
+cost-running = "cost_running.cli.app:main"
+
+[project.urls]
+Homepage = "https://github.com/warith-harchaoui/cost-running"
+Source = "https://github.com/warith-harchaoui/cost-running"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+# Ship the bundled YAML templates and the recommendation data inside the wheel.
+cost_running = ["templates/*.yaml", "data/*.yaml"]
+
+# --- Linting and formatting: Ruff enforces PEP 8 plus NumPy docstrings. ---
+[tool.ruff]
+# One pinned line length so every contributor and CI agree (the standard allows
+# 88/100 over the PEP 8 default of 79 as long as it is written down here).
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# pycodestyle (E/W), pyflakes (F), isort (I), pydocstyle (D).
+select = ["E", "W", "F", "I", "D"]
+# The domain is small and self-documenting in places; these relax a few
+# docstring rules that fight NumPy style rather than help it.
+ignore = ["D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests describe behaviour in their names and docstrings; a missing-docstring
+# rule on every assert-style helper adds noise without adding clarity.
+"tests/*" = ["D100", "D103"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

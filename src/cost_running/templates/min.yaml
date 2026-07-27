@@ -1,0 +1,62 @@
+# =======================================================================
+# cost-running - minimal cost model
+# =======================================================================
+# Copy this file, then replace every TODO with a sourced or measured value.
+# Run `cost-running validate <file>` and `cost-running render <file>` after
+# each edit. Every number carries a status: measured / estimated / placeholder
+# / TODO. Never present an estimate as measured.
+
+schema_version: "1.0"
+
+date_updated: "YYYY-MM-DD"
+
+canonical_unit_of_work:
+  name: "one run of the primary task"
+  description: "Replace with the single most representative unit of work."
+  status: "TODO"
+
+deployment:
+  provider: "unknown"    # e.g. aws, gcp, azure, on-prem, local
+  country: "unknown"     # ISO 3166-1 alpha-2, once confirmed (do not guess)
+
+assumptions:
+  electricity_price_usd_per_kwh:
+    value: null
+    unit: "USD/kWh"
+    status: "TODO"       # add source_url + retrieved_date from a tariff page
+  grid_carbon_intensity_gco2e_per_kwh:
+    value: null
+    unit: "gCO2e/kWh"
+    status: "TODO"       # add source_url from Electricity Maps for the region
+
+scenario:
+  name: "default"
+  runtime_seconds:
+    value: null
+    unit: "s"
+    status: "TODO"       # measure with `cost-running measure -- <command>`
+  local_compute:
+    energy_kwh:
+      value: null
+      status: "TODO"
+    electricity_cost_usd:
+      value: null
+      status: "TODO"
+    carbon_gco2e:
+      value: null
+      status: "TODO"
+  external_api_cost_usd:
+    value: 0.0
+    unit: "USD"
+    status: "placeholder"
+  totals:
+    total_cost_usd:
+      value: null
+      status: "TODO"
+    total_carbon_gco2e:
+      value: null
+      status: "TODO"
+
+exclusions:
+  - "Embodied hardware carbon (manufacturing) is not counted by default."
+  - "Storage and network egress are excluded unless materially relevant."

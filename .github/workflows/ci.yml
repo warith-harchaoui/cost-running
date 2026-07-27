@@ -1,0 +1,49 @@
+# Continuous integration: lint, type-adjacent doc rules, and tests.
+#
+# Runs on every push and pull request. Installs the contributor requirements
+# (which include the runtime), then gates on ruff (PEP 8 plus NumPy docstrings),
+# ruff format, dependency consistency, and the pytest suite.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test the oldest and newest supported Python on Linux, and the newest
+        # on macOS so a platform-specific break surfaces early.
+        include:
+          - os: ubuntu-latest
+            python-version: "3.10"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: macos-latest
+            python-version: "3.13"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          # Fail early if the resolved dependency set is inconsistent.
+          python -m pip check
+
+      - name: Lint (PEP 8 plus NumPy docstrings)
+        run: |
+          ruff check src tests
+          ruff format --check src tests
+
+      - name: Tests
+        run: python -m pytest

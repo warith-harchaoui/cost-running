@@ -1,0 +1,8 @@
+# Runtime installation entry point.
+#
+# Installs this project and its runtime dependencies from pyproject.toml, so the
+# dependency list lives in exactly one place and cannot drift. Optional delivery
+# surfaces (HTTP API, MCP) pull extra packages through their own extras:
+#   python -m pip install ".[api]"   # HTTP surface
+#   python -m pip install ".[mcp]"   # MCP surface
+.

@@ -1,0 +1,40 @@
+{
+  "skill_name": "cost-of-running-code",
+  "evals": [
+    {
+      "id": "obvious-trigger-inference-cost",
+      "prompt": "What does it cost to run one inference of this model, in money and carbon?",
+      "expected_output": "Builds a cost model with a named canonical unit, estimates energy and carbon via Green Algorithms, marks every value with an honesty status, validates, and renders a report.",
+      "should_trigger": true,
+      "files": []
+    },
+    {
+      "id": "trigger-report-request",
+      "prompt": "Give me a professional PDF report of the running cost of this repo.",
+      "expected_output": "Produces the cost model and Markdown report, then compiles a DOCX and PDF with md2star using the reference template; states what is measured versus estimated.",
+      "should_trigger": true,
+      "files": []
+    },
+    {
+      "id": "paraphrased-trigger-carbon-footprint",
+      "prompt": "Estimate the energy footprint of one CLI run on my machine.",
+      "expected_output": "Selects the CLI-invocation canonical unit, prefers a measured runtime, and honestly labels the derived energy as estimated when power is not measured.",
+      "should_trigger": true,
+      "files": []
+    },
+    {
+      "id": "negative-trigger-cloud-billing",
+      "prompt": "Break down my AWS bill by service for last month.",
+      "expected_output": "Does not trigger. This is a cloud-billing dashboard question, not a per-unit cost-of-running model.",
+      "should_trigger": false,
+      "files": []
+    },
+    {
+      "id": "negative-trigger-live-profiling",
+      "prompt": "Attach a profiler to my running service and find the hot functions.",
+      "expected_output": "Does not trigger. This is live-service observability and profiling, not a cost-of-running model.",
+      "should_trigger": false,
+      "files": []
+    }
+  ]
+}
