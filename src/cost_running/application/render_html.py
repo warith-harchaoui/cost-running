@@ -81,6 +81,70 @@ _DIM_META: dict[str, tuple[str, str]] = {
 
 
 # ---------------------------------------------------------------------------
+# Deployment context data — countries and instance types
+# ---------------------------------------------------------------------------
+
+# Grid carbon intensities in gCO2e/kWh, approximate IEA 2023 values.
+# 0 for "unknown" means "no carbon figure will be shown".
+_COUNTRY_GRID_GCO2E: dict[str, int] = {
+    "unknown": 0,
+    "Australia": 580,
+    "Austria": 107,
+    "Belgium": 149,
+    "Brazil": 100,
+    "Canada": 120,
+    "Chile": 310,
+    "China": 581,
+    "Czechia": 406,
+    "Denmark": 155,
+    "Egypt": 450,
+    "Finland": 65,
+    "France": 56,
+    "Germany": 385,
+    "India": 708,
+    "Ireland": 295,
+    "Israel": 470,
+    "Italy": 295,
+    "Japan": 474,
+    "Mexico": 450,
+    "Netherlands": 290,
+    "Norway": 19,
+    "Poland": 773,
+    "Portugal": 181,
+    "Romania": 237,
+    "Russia": 330,
+    "Saudi Arabia": 640,
+    "Singapore": 408,
+    "Slovakia": 119,
+    "South Africa": 800,
+    "South Korea": 415,
+    "Spain": 173,
+    "Sweden": 13,
+    "Switzerland": 39,
+    "Turkey": 430,
+    "UAE": 550,
+    "UK": 215,
+    "Ukraine": 280,
+    "USA": 386,
+}
+
+# Known instance types shown in the dropdown; the scaffold default is listed first.
+_INSTANCE_TYPES: list[str] = [
+    "single-CPU-node",
+    "single-A100-node",
+    "single-H100-node",
+    "single-V100-node",
+    "single-T4-node",
+    "single-A10G-node",
+    "single-RTX-4090",
+    "single-RTX-3090",
+    "aws-p4d.24xlarge (8× A100)",
+    "aws-p3.2xlarge (1× V100)",
+    "gcp-a2-highgpu-1g (1× A100)",
+    "azure-NC24ads-A100-v4 (1× A100)",
+]
+
+# ---------------------------------------------------------------------------
 # SVG helper primitives
 # ---------------------------------------------------------------------------
 
@@ -649,6 +713,28 @@ figure svg { display: block; color: var(--color-text); }
 /* ===== Footer ===== */
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted); }
 
+/* ===== Deployment dropdowns ===== */
+.deploy-select {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.deploy-select:focus { border-color: var(--color-accent); }
+.deploy-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-left: 0.5rem;
+  font-style: italic;
+}
+@media print { .deploy-select { border: none; appearance: none; -webkit-appearance: none; } }
+
 /* ===== Report toolbar ===== */
 .report-toolbar {
   display: flex;
@@ -764,6 +850,51 @@ def _render_unit_section(data: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+def _country_select(current: str) -> str:
+    """Return a <select> for the country field with carbon-intensity hint."""
+    options = []
+    for name in sorted(_COUNTRY_GRID_GCO2E):
+        selected = " selected" if name == current else ""
+        options.append(f'<option value="{_esc(name)}"{selected}>{_esc(name)}</option>')
+    # If the current value isn't in the list, add it as a custom entry.
+    if current not in _COUNTRY_GRID_GCO2E:
+        options.insert(0, f'<option value="{_esc(current)}" selected>{_esc(current)}</option>')
+    intensity = _COUNTRY_GRID_GCO2E.get(current, 0)
+    hint = f"≈ {intensity} gCO₂e/kWh" if intensity else "set a country to see grid intensity"
+    return (
+        '<select id="cr-country" class="deploy-select" onchange="crCountryChange(this)">'
+        + "".join(options)
+        + f'</select><span id="cr-country-hint" class="deploy-hint">{hint}</span>'
+    )
+
+
+def _instance_select(current: str) -> str:
+    """Return a <select> for the instance_type field."""
+    options = []
+    found = False
+    for name in _INSTANCE_TYPES:
+        selected = " selected" if name == current else ""
+        if name == current:
+            found = True
+        options.append(f'<option value="{_esc(name)}"{selected}>{_esc(name)}</option>')
+    if not found:
+        options.insert(0, f'<option value="{_esc(current)}" selected>{_esc(current)}</option>')
+    return '<select id="cr-instance" class="deploy-select">' + "".join(options) + "</select>"
+
+
+def _deployment_js() -> str:
+    """Return the inline JS that powers the country carbon-intensity hint."""
+    data_js = "{" + ",".join(f'"{k}":{v}' for k, v in _COUNTRY_GRID_GCO2E.items()) + "}"
+    return f"""<script>
+var _CR_GRID={data_js};
+function crCountryChange(sel){{
+  var v=_CR_GRID[sel.value];
+  var hint=document.getElementById('cr-country-hint');
+  hint.textContent=v?'\\u2248 '+v+' gCO₂e/kWh':'set a country to see grid intensity';
+}}
+</script>"""
+
+
 def _render_deployment_section(data: dict[str, Any]) -> str:
     deployment = data.get("deployment")
     if not isinstance(deployment, dict) or not deployment:
@@ -771,8 +902,15 @@ def _render_deployment_section(data: dict[str, Any]) -> str:
     parts = ['<section class="deployment">', "<h2>Deployment</h2>", '<div class="card">']
     parts.append('<dl class="kv-list">')
     for key, value in deployment.items():
-        parts.append(f"<dt>{_esc(key)}</dt><dd>{_esc(value)}</dd>")
-    parts.append("</dl></div></section>")
+        if key == "country":
+            parts.append(f"<dt>{_esc(key)}</dt><dd>{_country_select(str(value))}</dd>")
+        elif key == "instance_type":
+            parts.append(f"<dt>{_esc(key)}</dt><dd>{_instance_select(str(value))}</dd>")
+        else:
+            parts.append(f"<dt>{_esc(key)}</dt><dd>{_esc(value)}</dd>")
+    parts.append("</dl></div>")
+    parts.append(_deployment_js())
+    parts.append("</section>")
     return "\n".join(parts)
 
 

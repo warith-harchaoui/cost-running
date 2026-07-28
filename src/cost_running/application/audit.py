@@ -264,5 +264,12 @@ def audit_github_repo(ref: str) -> AuditResult:
     RuntimeError
         If ``git clone`` fails (network error, private repo, typo, etc.).
     """
+    from ..infrastructure.github import parse_github_ref
+
+    owner, repo_name = parse_github_ref(ref)
     with cloned_repo(ref) as path:
-        return audit_repo(path)
+        result = audit_repo(path)
+    # Replace the temp-dir basename with the real repo name.
+    result.name = repo_name
+    result.model["project_name"] = repo_name
+    return result
