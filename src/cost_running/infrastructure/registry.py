@@ -32,9 +32,26 @@ import yaml
 # The bundled catalog ships inside the package and is read-only once installed.
 _BUNDLED_DIR: Path = Path(__file__).resolve().parent.parent / "data"
 
-# Rows older than this many days are flagged stale. Pricing ages fastest, so this
-# is deliberately short; a stable TDP simply gets re-confirmed.
-STALE_DAYS: int = 120
+# Rows older than this many days are flagged stale, measured from their
+# ``retrieved_date``. The default is one month, because the fast-moving data
+# (prices, grid carbon intensities, provider and instance offerings) is what the
+# tool leans on most and it drifts within weeks.
+STALE_DAYS: int = 30
+
+# Some data ages far more slowly than a price. A GPU's thermal design power and
+# peak throughput are physical facts of the silicon; once sourced they need
+# re-confirming yearly, not monthly. Categories absent here fall back to the
+# monthly :data:`STALE_DAYS`. Keys match the catalog's ``device_kind`` / row
+# category (``gpus``, ``cpus``, ``services``, ``country``, ``provider``,
+# ``instance``).
+STALE_DAYS_BY_KIND: dict[str, int] = {
+    "gpus": 365,
+    "cpus": 365,
+    "services": 30,
+    "country": 30,
+    "provider": 30,
+    "instance": 30,
+}
 
 # Provenance is mandatory on every catalog row. These are the keys `add` requires.
 _PROVENANCE_KEYS: tuple[str, str] = ("source_url", "retrieved_date")
@@ -182,13 +199,46 @@ def days_since(retrieved_date: str) -> int | None:
     return (date.today() - then).days
 
 
-def is_stale(row: dict) -> bool:
-    """Return whether a catalog row's provenance is older than :data:`STALE_DAYS`.
+def stale_threshold_days(kind: str | None = None) -> int:
+    """Return the staleness threshold in days for a catalog category.
+
+    Parameters
+    ----------
+    kind : str or None, optional
+        The row category (``gpus``, ``cpus``, ``services``, ``country``,
+        ``provider``, ``instance``). ``None`` or an unknown kind uses the monthly
+        default :data:`STALE_DAYS`.
+
+    Returns
+    -------
+    int
+        The number of days after which a row of this kind is considered stale.
+
+    Examples
+    --------
+    >>> stale_threshold_days("gpus")
+    365
+    >>> stale_threshold_days("services")
+    30
+    >>> stale_threshold_days(None)
+    30
+    """
+    if kind is None:
+        return STALE_DAYS
+    return STALE_DAYS_BY_KIND.get(kind, STALE_DAYS)
+
+
+def is_stale(row: dict, kind: str | None = None) -> bool:
+    """Return whether a catalog row's provenance is older than its threshold.
 
     Parameters
     ----------
     row : dict
         A catalog row that should carry ``retrieved_date``.
+    kind : str or None, optional
+        The row's category, so the right threshold applies: a monthly window for
+        prices and grid data, a yearly one for physical hardware specs. ``None``
+        uses the monthly default, which is the safe (more eager) choice.
 
     Returns
     -------
@@ -198,7 +248,37 @@ def is_stale(row: dict) -> bool:
     """
     age = days_since(row.get("retrieved_date", ""))
     # A row with no date is treated as stale: unverifiable provenance is not fresh.
-    return age is None or age > STALE_DAYS
+    return age is None or age > stale_threshold_days(kind)
+
+
+def stale_rows(overlay: Path | None = None) -> dict[str, list[str]]:
+    """Return the keys of every stale row in the catalog, grouped by category.
+
+    This is the freshness scan behind ``cost-running catalog freshness``: it
+    reports which stored values a month (or, for hardware, a year) has passed
+    since they were sourced, so a maintainer knows exactly what to re-confirm.
+    It never fetches anything or invents a fresher value; deciding a row is stale
+    is pure date arithmetic, and refreshing it is a separate, sourced step.
+
+    Parameters
+    ----------
+    overlay : pathlib.Path or None, optional
+        Overlay directory. Defaults to :func:`overlay_dir`.
+
+    Returns
+    -------
+    dict
+        ``{category: [stale_key, ...]}`` for ``gpus``, ``cpus`` and ``services``.
+        Categories with nothing stale still appear, mapped to an empty list, so
+        the caller can report "all fresh" per category without a second lookup.
+    """
+    hw = hardware_catalog(overlay)
+    services = service_catalog(overlay)
+    return {
+        "gpus": sorted(k for k, row in hw["gpus"].items() if is_stale(row, "gpus")),
+        "cpus": sorted(k for k, row in hw["cpus"].items() if is_stale(row, "cpus")),
+        "services": sorted(k for k, row in services.items() if is_stale(row, "services")),
+    }
 
 
 def _require_provenance(entry: dict) -> None:

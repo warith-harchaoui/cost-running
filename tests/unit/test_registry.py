@@ -81,3 +81,37 @@ def test_stale_detection():
     from datetime import date
 
     assert not registry.is_stale({"retrieved_date": date.today().isoformat()})
+
+
+def test_stale_threshold_is_category_aware():
+    # Volatile data (prices, grid) is stale after a month; hardware specs after a year.
+    assert registry.stale_threshold_days("services") == 30
+    assert registry.stale_threshold_days("country") == 30
+    assert registry.stale_threshold_days("gpus") == 365
+    assert registry.stale_threshold_days("cpus") == 365
+    # An unknown kind, or none at all, falls back to the monthly default.
+    assert registry.stale_threshold_days(None) == registry.STALE_DAYS
+    assert registry.stale_threshold_days("mystery") == registry.STALE_DAYS
+
+
+def test_kind_changes_staleness_verdict():
+    from datetime import date, timedelta
+
+    # A row sourced ~60 days ago: stale as a monthly-refreshed price, fresh as a
+    # yearly-refreshed hardware spec. The same date, a different verdict by kind.
+    sixty_days_ago = (date.today() - timedelta(days=60)).isoformat()
+    row = {"retrieved_date": sixty_days_ago}
+    assert registry.is_stale(row, "services")
+    assert not registry.is_stale(row, "gpus")
+
+
+def test_stale_rows_scan_groups_by_category():
+    stale = registry.stale_rows()
+    # The scan reports all three categories, each mapped to a list (possibly empty).
+    assert set(stale) == {"gpus", "cpus", "services"}
+    for keys in stale.values():
+        assert isinstance(keys, list)
+    # Bundled services carry no fetched price, so every one needs sourcing.
+    assert stale["services"], "expected unsourced bundled services to be flagged"
+    # Bundled hardware was sourced recently, so nothing hardware-side is stale yet.
+    assert stale["gpus"] == []

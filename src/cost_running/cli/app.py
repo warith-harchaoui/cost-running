@@ -297,10 +297,12 @@ def _cmd_hardware_list(args: argparse.Namespace) -> int:
         Always ``0``.
     """
     catalog = registry.hardware_catalog()
-    # When --stale is set, show only rows whose provenance needs a refresh.
+    # When --stale is set, show only rows whose provenance needs a refresh. The
+    # category (gpus/cpus) sets the threshold: hardware specs are re-confirmed
+    # yearly, not monthly.
     if args.stale:
         catalog = {
-            kind: {k: row for k, row in rows.items() if registry.is_stale(row)}
+            kind: {k: row for k, row in rows.items() if registry.is_stale(row, kind)}
             for kind, rows in catalog.items()
         }
     print(json.dumps(catalog, indent=2, default=str))
@@ -346,10 +348,69 @@ def _cmd_hardware_add(args: argparse.Namespace) -> int:
 def _cmd_service_list(args: argparse.Namespace) -> int:
     """Print the service catalog as JSON, optionally only the stale rows."""
     catalog = registry.service_catalog()
+    # Services are priced values: a month-old price is treated as stale.
     if args.stale:
-        catalog = {k: row for k, row in catalog.items() if registry.is_stale(row)}
+        catalog = {k: row for k, row in catalog.items() if registry.is_stale(row, "services")}
     print(json.dumps(catalog, indent=2, default=str))
     return EXIT_OK
+
+
+def _cmd_catalog_freshness(args: argparse.Namespace) -> int:
+    """Report which catalog rows are stale and how to refresh them.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments with ``json`` (machine-readable output when set).
+
+    Returns
+    -------
+    int
+        ``0`` when everything is fresh, ``1`` when at least one row is stale, so
+        the command is usable as a CI freshness gate.
+    """
+    stale = registry.stale_rows()
+    total_stale = sum(len(keys) for keys in stale.values())
+
+    if args.json:
+        payload = {
+            "stale": stale,
+            "total_stale": total_stale,
+            "thresholds_days": {
+                "services": registry.stale_threshold_days("services"),
+                "gpus": registry.stale_threshold_days("gpus"),
+                "cpus": registry.stale_threshold_days("cpus"),
+            },
+        }
+        print(json.dumps(payload, indent=2, default=str))
+        return EXIT_OK if total_stale == 0 else EXIT_OPERATIONAL
+
+    if total_stale == 0:
+        print("All catalog rows are fresh.")
+        return EXIT_OK
+
+    # Human-readable: name the stale rows per category and the refresh command.
+    # A service with no fetched price counts here too: an unsourced price and a
+    # month-old one both need a maintainer to look up the current number.
+    month = registry.stale_threshold_days("services")
+    year = registry.stale_threshold_days("gpus")
+    print(
+        f"Rows to refresh (prices unsourced or older than {month} days, "
+        f"hardware older than {year} days):"
+    )
+    refresh_hint = {
+        "services": "cost-running service add ... --retrieved-date <today>",
+        "gpus": "cost-running hardware add --kind gpu ... --retrieved-date <today>",
+        "cpus": "cost-running hardware add --kind cpu ... --retrieved-date <today>",
+    }
+    for category, keys in stale.items():
+        if not keys:
+            continue
+        print(f"\n  {category} ({len(keys)}):")
+        for key in keys:
+            print(f"    - {key}")
+        print(f"    refresh with: {refresh_hint[category]}")
+    return EXIT_OPERATIONAL
 
 
 def _cmd_service_add(args: argparse.Namespace) -> int:
@@ -508,6 +569,18 @@ def make_parser() -> argparse.ArgumentParser:
     svc_add.add_argument("--unit-hint", help="How it is metered, e.g. USD per 1M tokens.")
     svc_add.add_argument("--retrieved-date", required=True, help="YYYY-MM-DD the price was read.")
     svc_add.set_defaults(func=_cmd_service_add)
+
+    # catalog: cross-cutting views over both catalogs.
+    catalog_parser = subparsers.add_parser(
+        "catalog", help="Cross-cutting catalog views (freshness, ...)."
+    )
+    catalog_sub = catalog_parser.add_subparsers(dest="catalog_command", required=True)
+    cat_fresh = catalog_sub.add_parser(
+        "freshness",
+        help="Report stale rows (prices monthly, hardware yearly); exit 1 if any are stale.",
+    )
+    cat_fresh.add_argument("--json", action="store_true", help="Machine-readable output.")
+    cat_fresh.set_defaults(func=_cmd_catalog_freshness)
 
     return parser
 
