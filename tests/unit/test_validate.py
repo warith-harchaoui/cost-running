@@ -54,13 +54,39 @@ def test_invalid_status_label_is_an_error(valid_model):
     assert any("invalid status" in i.message for i in result.errors)
 
 
-def test_weakest_link_warns_when_derived_outranks_inputs(valid_model):
+def test_weakest_link_is_an_error_when_derived_outranks_inputs(valid_model):
     data = copy.deepcopy(valid_model)
     # Energy claims measured while its power input is only estimated: dishonest.
     data["scenario"]["local_compute"]["energy_kwh"]["status"] = "measured"
     result = validate_model(data)
-    assert result.is_valid()  # a warning, not an error
-    assert any("cannot outrank its weakest input" in i.message for i in result.warnings)
+    # Overclaiming the honesty of a derived value is an error, not merely a warning:
+    # it directly contradicts the weakest-link rule, the central honesty guarantee.
+    assert not result.is_valid()
+    assert any("cannot outrank its weakest input" in i.message for i in result.errors)
+
+
+def test_numeric_quantity_without_status_is_an_error(valid_model):
+    data = copy.deepcopy(valid_model)
+    data["scenario"]["runtime_seconds"] = {"value": 1.0, "unit": "s"}  # no status
+    result = validate_model(data)
+    assert not result.is_valid()
+    assert any("no status" in i.message for i in result.errors)
+
+
+def test_negative_value_is_an_error(valid_model):
+    data = copy.deepcopy(valid_model)
+    data["scenario"]["runtime_seconds"]["value"] = -1.0
+    result = validate_model(data)
+    assert not result.is_valid()
+    assert any("cannot be negative" in i.message for i in result.errors)
+
+
+def test_estimated_assumption_without_source_url_warns(valid_model):
+    # The conftest fixture has estimated assumptions without source_url; that's
+    # an advisory warning (not an error) so the model still loads.
+    result = validate_model(valid_model)
+    assert result.is_valid()
+    assert any("source_url" in i.message for i in result.warnings)
 
 
 def test_stale_provenance_warns(valid_model):

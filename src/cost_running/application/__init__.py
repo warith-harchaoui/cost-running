@@ -17,8 +17,10 @@ Project maintainers.
 
 from __future__ import annotations
 
+from .diff import DiffResult, DriftItem, diff_models
 from .io import dump_model_yaml, load_model, write_text
 from .render import render_markdown
+from .render_html import render_html
 from .results import ValidationIssue, ValidationResult
 from .validate import validate_model
 
@@ -27,7 +29,11 @@ __all__ = [
     "dump_model_yaml",
     "write_text",
     "render_markdown",
+    "render_html",
     "validate_model",
     "ValidationIssue",
     "ValidationResult",
+    "diff_models",
+    "DiffResult",
+    "DriftItem",
 ]

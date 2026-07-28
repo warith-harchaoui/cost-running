@@ -30,7 +30,15 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .. import __version__
-from ..application import dump_model_yaml, load_model, render_markdown, validate_model, write_text
+from ..application import (
+    diff_models,
+    dump_model_yaml,
+    load_model,
+    render_html,
+    render_markdown,
+    validate_model,
+    write_text,
+)
 from ..application.audit import audit_repo
 from ..application.measure import measure_command
 from ..infrastructure import registry
@@ -109,12 +117,12 @@ def _cmd_validate(args: argparse.Namespace) -> int:
 
 
 def _cmd_render(args: argparse.Namespace) -> int:
-    """Render a cost model to Markdown.
+    """Render a cost model to Markdown or HTML.
 
     Parameters
     ----------
     args : argparse.Namespace
-        Parsed arguments with ``input`` and optional ``output``.
+        Parsed arguments with ``input``, optional ``output``, and ``format``.
 
     Returns
     -------
@@ -128,17 +136,18 @@ def _cmd_render(args: argparse.Namespace) -> int:
         logger.error("Cannot read model %s: %s", args.input, exc)
         return EXIT_USAGE
 
-    markdown = render_markdown(model)
-    # With --output, write the file; without it, the report is the stdout payload
-    # so it can be piped. Either way the report is the deliberate result.
-    if args.output:
-        write_text(args.output, markdown)
-        logger.info("Rendered %s", args.output)
+    fmt = args.format
+    if fmt == "html":
+        content = render_html(model)
     else:
-        print(markdown)
+        content = render_markdown(model)
 
-    # Report but do not hide validation errors; the render still succeeds so the
-    # author can see the offending output.
+    if args.output:
+        write_text(args.output, content)
+        logger.info("Rendered %s (%s)", args.output, fmt)
+    else:
+        print(content)
+
     result = validate_model(model)
     if not result.is_valid():
         for issue in result.errors:
@@ -178,6 +187,58 @@ def _cmd_measure(args: argparse.Namespace) -> int:
     # The measurement itself is the machine-readable result: stdout, as JSON.
     print(json.dumps(result.to_dict(), indent=2, default=str))
     return EXIT_OK
+
+
+def _cmd_diff(args: argparse.Namespace) -> int:
+    """Compare two cost models and report dimensional drift.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments with ``old``, ``new``, ``threshold``, and ``json``.
+
+    Returns
+    -------
+    int
+        ``0`` when all quantities are within the threshold, ``1`` when at least
+        one dimension drifted beyond it (the CI gate signal), ``2`` on a read
+        error.
+    """
+    try:
+        old_model = load_model(args.old)
+        new_model = load_model(args.new)
+    except (OSError, ValueError) as exc:
+        logger.error("Cannot read model: %s", exc)
+        return EXIT_USAGE
+
+    result = diff_models(old_model, new_model)
+    drifts = result.above_threshold(args.threshold)
+
+    if args.json:
+        print(json.dumps(result.report(args.threshold), indent=2, default=str))
+    else:
+        if drifts:
+            logger.warning(
+                "%d dimension(s) drifted beyond %.0f%% threshold:",
+                len(drifts),
+                args.threshold * 100,
+            )
+            for d in drifts:
+                logger.warning(
+                    "  %s: %+.1f%%  (%s → %s)",
+                    d.path,
+                    d.relative_change * 100,
+                    d.old_value,
+                    d.new_value,
+                )
+        else:
+            logger.info("All quantities within %.0f%% threshold.", args.threshold * 100)
+        if result.only_in_old:
+            logger.warning("Removed from model: %s", ", ".join(result.only_in_old))
+        if result.only_in_new:
+            logger.warning("Added to model: %s", ", ".join(result.only_in_new))
+
+    return EXIT_OPERATIONAL if drifts else EXIT_OK
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:
@@ -332,11 +393,34 @@ def make_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("input", help="Path to the YAML cost model.")
     validate_parser.set_defaults(func=_cmd_validate)
 
-    # render: produce the Markdown report.
-    render_parser = subparsers.add_parser("render", help="Render a cost model to Markdown.")
+    # render: produce a Markdown or HTML report.
+    render_parser = subparsers.add_parser("render", help="Render a cost model to Markdown or HTML.")
     render_parser.add_argument("input", help="Path to the YAML cost model.")
     render_parser.add_argument("--output", help="Write here instead of stdout.")
+    render_parser.add_argument(
+        "--format",
+        choices=["md", "html"],
+        default="md",
+        help="Output format: md (default) or html (self-contained page with figures).",
+    )
     render_parser.set_defaults(func=_cmd_render)
+
+    # diff: compare two models and report dimensional drift.
+    diff_parser = subparsers.add_parser(
+        "diff", help="Compare two cost models and flag dimensional drift."
+    )
+    diff_parser.add_argument("old", help="Path to the baseline YAML cost model.")
+    diff_parser.add_argument("new", help="Path to the updated YAML cost model.")
+    diff_parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.10,
+        help=(
+            "Relative drift threshold (default: 0.10 = 10%%). Exit 1 when any dimension exceeds it."
+        ),
+    )
+    diff_parser.add_argument("--json", action="store_true", help="Print full diff as JSON.")
+    diff_parser.set_defaults(func=_cmd_diff)
 
     # measure: run a command and report its measured cost as JSON.
     measure_parser = subparsers.add_parser(

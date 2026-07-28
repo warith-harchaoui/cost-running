@@ -9,15 +9,28 @@ from cost_running.application.measure import measure_command
 
 
 def test_measure_runs_command_and_reports_honest_power():
-    # A trivial, fast command. Duration is always measured; power is measured only
-    # when RAPL was readable, which we do not assume in CI.
+    # A trivial, fast command. Duration is always reported; energy is always
+    # estimated (even when derived from a RAPL reading, since attribution to the
+    # workload is an estimation step).
     result = measure_command([sys.executable, "-c", "sum(range(100000))"])
     assert result.duration_seconds >= 0
-    assert result.power_status in {"measured", "estimated"}
+    # Power status is always estimated: RAPL gives system-package attribution,
+    # not process-attributed energy.
+    assert result.power_status == "estimated"
+    # power_source distinguishes the tightness of the estimate.
+    assert result.power_source in {"rapl_system_package", "tdp_estimate"}
     # The result records the machine it ran on, for later extrapolation.
     assert result.hardware.os in {"Darwin", "Linux", "Windows"}
+    # Exit code is captured so a caller can detect a failed workload.
+    assert result.workload_exit_code == 0
     # The JSON view exposes the derived status so a consumer need not re-derive it.
     assert result.to_dict()["power_status"] == result.power_status
+
+
+def test_measure_captures_nonzero_exit_code():
+    result = measure_command([sys.executable, "-c", "raise SystemExit(42)"])
+    assert result.workload_exit_code == 42
+    assert any("exited with code 42" in w for w in result.warnings)
 
 
 def test_measure_rejects_empty_command():

@@ -93,6 +93,9 @@ ignore = ["D203", "D213"]
 # Tests describe behaviour in their names and docstrings; a missing-docstring
 # rule on every assert-style helper adds noise without adding clarity.
 "tests/*" = ["D100", "D103"]
+# render_html.py embeds CSS and HTML in Python strings; enforcing the 100-char
+# line limit on those strings would harm readability without improving correctness.
+"src/cost_running/application/render_html.py" = ["E501"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
