@@ -648,6 +648,52 @@ figure svg { display: block; color: var(--color-text); }
 
 /* ===== Footer ===== */
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted); }
+
+/* ===== Report toolbar ===== */
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+.report-toolbar a {
+  font-size: 0.875rem;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.report-toolbar a:hover { text-decoration: underline; }
+.btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity 0.15s;
+}
+.btn-pdf:hover { opacity: 0.85; }
+
+/* ===== Print / PDF ===== */
+@media print {
+  .report-toolbar { display: none; }
+  body { background: #fff; color: #000; padding: 0; }
+  .page { max-width: 100%; }
+  .card, figure { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  header { border-bottom-color: #000; }
+  h2 { border-left-color: #000; }
+  .badge-measured   { background: #e0ecff; color: #00308F; }
+  .badge-estimated  { background: #fff3cd; color: #664d00; }
+  .badge-placeholder{ background: #eee; color: #333; }
+  .badge-todo       { background: #ffe4e3; color: #8B0000; }
+  footer { margin-top: 1.5rem; }
+}
 """
 
 
@@ -834,7 +880,20 @@ def _render_exclusions_section(data: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def render_html(data: dict[str, Any]) -> str:
+def _render_toolbar(back_url: str | None = None) -> str:
+    """Return the report toolbar with a PDF button and optional back link."""
+    back = ""
+    if back_url:
+        back = f'<a href="{_esc(back_url)}">← Gallery</a>'
+    return (
+        '<div class="report-toolbar">'
+        f"{back}"
+        '<button class="btn-pdf" onclick="window.print()">⬇ Save as PDF</button>'
+        "</div>"
+    )
+
+
+def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
     """Render a cost model to a self-contained HTML report.
 
     Parameters
@@ -863,6 +922,7 @@ def render_html(data: dict[str, Any]) -> str:
     True
     """
     body_parts = [
+        _render_toolbar(back_url),
         _render_header(data),
         _render_honesty_section(data),
         _render_unit_section(data),

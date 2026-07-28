@@ -139,7 +139,7 @@ def _cmd_render(args: argparse.Namespace) -> int:
 
     fmt = args.format
     if fmt == "html":
-        content = render_html(model)
+        content = render_html(model, back_url=getattr(args, "back_url", None))
     else:
         content = render_markdown(model)
 
@@ -410,6 +410,12 @@ def make_parser() -> argparse.ArgumentParser:
         choices=["md", "html"],
         default="md",
         help="Output format: md (default) or html (self-contained page with figures).",
+    )
+    render_parser.add_argument(
+        "--back-url",
+        default=None,
+        dest="back_url",
+        help="URL for the '← Gallery' back link in HTML reports (html format only).",
     )
     render_parser.set_defaults(func=_cmd_render)
 

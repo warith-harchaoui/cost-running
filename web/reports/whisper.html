@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cost-of-running report — 2026-07-28">
+  <title>cost-running-whisper-3gb3leo5 — cost report</title>
+  <style>
+/* ===== CSS custom properties — sprezzature palette ===== */
+:root {
+  --color-bg: #F8F8F8;
+  --color-surface: #FFFFFF;
+  --color-text: #1A1A1A;
+  --color-text-muted: #555555;
+  --color-border: #E0E0E0;
+  --color-accent: #007AFF;
+  --color-measured: #007AFF;
+  --color-estimated: #FF9500;
+  --color-placeholder: #808080;
+  --color-todo: #FF3B30;
+  --font-sans: Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: "Roboto Serif", ui-serif, Georgia, Cambria, serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
+  --radius: 8px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #111118;
+    --color-surface: #1E1E2A;
+    --color-text: #EFEFEF;
+    --color-text-muted: #999999;
+    --color-border: #2E2E3E;
+    --color-accent: #4DA3FF;
+    --color-measured: #4DA3FF;
+    --color-estimated: #FFB340;
+    --color-placeholder: #AAAAAA;
+    --color-todo: #FF6B60;
+    --shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+}
+
+/* ===== Reset & base ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  padding: 2rem 1rem 4rem;
+}
+
+/* ===== Layout ===== */
+.page { max-width: 860px; margin: 0 auto; }
+header { margin-bottom: 2.5rem; border-bottom: 2px solid var(--color-accent); padding-bottom: 1rem; }
+header h1 { font-size: 2rem; font-weight: 700; color: var(--color-text); }
+header p { color: var(--color-text-muted); margin-top: 0.25rem; }
+section { margin-bottom: 2rem; }
+h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-text); border-left: 4px solid var(--color-accent); padding-left: 0.75rem; }
+h3 { font-size: 1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: var(--color-text); }
+p { margin-bottom: 0.5rem; }
+
+/* ===== Cards ===== */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.25rem;
+  box-shadow: var(--shadow);
+}
+
+/* ===== Key-value list ===== */
+.kv-list { list-style: none; display: grid; grid-template-columns: 180px 1fr; gap: 0.25rem 0.75rem; }
+.kv-list dt { font-weight: 500; color: var(--color-text-muted); font-size: 0.875rem; }
+.kv-list dd { color: var(--color-text); font-size: 0.875rem; }
+
+/* ===== Tables ===== */
+table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+th { text-align: left; padding: 0.4rem 0.75rem; background: var(--color-border); font-weight: 600; }
+td { padding: 0.35rem 0.75rem; border-bottom: 1px solid var(--color-border); font-family: var(--font-mono); }
+tr:last-child td { border-bottom: none; }
+
+/* ===== Status badges ===== */
+.badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.badge-measured   { background: #CCE4FF; color: #004999; }
+.badge-estimated  { background: #FFF0CC; color: #7A4800; }
+.badge-placeholder{ background: #EEEEEE; color: #444444; }
+.badge-todo       { background: #FFD8D6; color: #8B0000; }
+@media (prefers-color-scheme: dark) {
+  .badge-measured   { background: #003366; color: #7FC3FF; }
+  .badge-estimated  { background: #5A3400; color: #FFD080; }
+  .badge-placeholder{ background: #333333; color: #BBBBBB; }
+  .badge-todo       { background: #5C0000; color: #FF9999; }
+}
+
+/* ===== Figures ===== */
+figure {
+  margin: 1.25rem 0;
+  padding: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+figcaption {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+figure svg { display: block; color: var(--color-text); }
+
+/* ===== Exclusions ===== */
+.exclusions ul { list-style: disc; padding-left: 1.5rem; font-size: 0.875rem; color: var(--color-text-muted); }
+.exclusions li { margin-bottom: 0.25rem; }
+
+/* ===== Footer ===== */
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted); }
+
+/* ===== Report toolbar ===== */
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.75rem;
+}
+.report-toolbar a {
+  font-size: 0.875rem;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+.report-toolbar a:hover { text-decoration: underline; }
+.btn-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: opacity 0.15s;
+}
+.btn-pdf:hover { opacity: 0.85; }
+
+/* ===== Print / PDF ===== */
+@media print {
+  .report-toolbar { display: none; }
+  body { background: #fff; color: #000; padding: 0; }
+  .page { max-width: 100%; }
+  .card, figure { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
+  header { border-bottom-color: #000; }
+  h2 { border-left-color: #000; }
+  .badge-measured   { background: #e0ecff; color: #00308F; }
+  .badge-estimated  { background: #fff3cd; color: #664d00; }
+  .badge-placeholder{ background: #eee; color: #333; }
+  .badge-todo       { background: #ffe4e3; color: #8B0000; }
+  footer { margin-top: 1.5rem; }
+}
+
+  </style>
+</head>
+<body>
+<div class="page">
+<div class="report-toolbar"><a href="../index.html">← Gallery</a><button class="btn-pdf" onclick="window.print()">⬇ Save as PDF</button></div>
+<header>
+<h1>cost-running-whisper-3gb3leo5</h1>
+<p>Last updated: 2026-07-28 &middot; Schema: v1.0</p>
+</header>
+<section class="honesty">
+<h2>Honesty summary</h2>
+<figure role="img" aria-label="Honesty status distribution"><svg xmlns="http://www.w3.org/2000/svg" width="560" height="116" viewBox="0 0 560 116" role="img" aria-label="Honesty status distribution" style="font-family: Roboto, ui-sans-serif, system-ui, sans-serif; overflow: visible;"><title>Honesty status distribution</title>
+<rect width="560" height="116" fill="transparent"/>
+<text x="16" y="26" font-size="13" font-weight="600" fill="currentColor">Honesty status distribution</text>
+<rect x="16.0" y="36" width="528.0" height="28" fill="#FF9500" opacity="0.85"/>
+<text x="280.0" y="55.0" font-size="11" text-anchor="middle" fill="white" font-weight="600">100%</text>
+<rect x="16.0" y="82" width="10" height="10" fill="#FF9500" rx="2"/>
+<text x="30.0" y="92" font-size="11" fill="currentColor">estimated (3)</text>
+</svg><figcaption>Distribution of honesty labels across all numeric quantities in this model. <em>measured</em> = real observation; <em>estimated</em> = computed from sourced assumptions; <em>placeholder</em> = structural stand-in; <em>TODO</em> = must be filled before the model can be trusted.</figcaption></figure>
+</section>
+<section class="unit">
+<h2>Canonical unit of work</h2>
+<div class="card">
+<dl class="kv-list">
+<dt>Unit</dt><dd>one CLI invocation&nbsp;<span class="badge badge-estimated">estimated</span></dd>
+<dt>Description</dt><dd>Representative unit of work for the cli-tool archetype.</dd>
+</dl>
+</div>
+</section>
+<section class="deployment">
+<h2>Deployment</h2>
+<div class="card">
+<dl class="kv-list">
+<dt>provider</dt><dd>on-prem</dd>
+<dt>instance_type</dt><dd>single-CPU-node</dd>
+<dt>country</dt><dd>unknown</dd>
+</dl></div></section>
+<section class="scenarios">
+<h2>Scenarios</h2>
+<h3>Scenario: default</h3>
+<figure role="img" aria-label="Cost breakdown for default"><svg xmlns="http://www.w3.org/2000/svg" width="620" height="124" viewBox="0 0 620 124" role="img" aria-label="Honesty inventory — default" style="font-family: Roboto, ui-sans-serif, system-ui, sans-serif; overflow: visible;"><title>Honesty inventory — default</title>
+<rect width="620" height="124" fill="transparent"/>
+<text x="16" y="22" font-size="13" font-weight="600" fill="currentColor">Honesty inventory — default</text>
+<text x="16" y="40" font-size="10" fill="currentColor" opacity="0.55">Status colour encodes confidence; value and unit are always shown. All cost and emission dimensions: lower is better.</text>
+<rect x="16" y="48" width="588" height="34" fill="currentColor" opacity="0.025" rx="2"/>
+<text x="188" y="70" font-size="12" text-anchor="end" fill="currentColor">Runtime</text>
+<rect x="196" y="57" width="16" height="16" fill="#FF9500" rx="3" opacity="0.9"/>
+<text x="224" y="70" font-size="12" font-family="ui-monospace, Roboto Mono, monospace" fill="#FF9500">1 s</text>
+<text x="384" y="70" font-size="10" fill="#FF9500" opacity="0.85">estimated</text>
+<text x="188" y="104" font-size="12" text-anchor="end" fill="currentColor">Energy</text>
+<rect x="196" y="91" width="16" height="16" fill="#FF9500" rx="3" opacity="0.9"/>
+<text x="224" y="104" font-size="12" font-family="ui-monospace, Roboto Mono, monospace" fill="#FF9500">2.19e-05</text>
+<text x="384" y="104" font-size="10" fill="#FF9500" opacity="0.85">estimated</text>
+</svg><figcaption>Cost breakdown for scenario <em>default</em>. Bar colour encodes honesty status; text labels repeat it. All cost and emission dimensions: lower is better.</figcaption></figure>
+<div class="card"><table>
+<thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>
+<tr><td>Runtime</td><td>1.0&thinsp;s&nbsp;<span class="badge badge-estimated">estimated</span></td></tr>
+<tr><td>Energy</td><td>2.1944444444444445e-05&nbsp;<span class="badge badge-estimated">estimated</span></td></tr>
+<tr><td>Electricity cost</td><td>&nbsp;<span class="badge badge-todo">TODO</span></td></tr>
+<tr><td>Carbon</td><td>&nbsp;<span class="badge badge-todo">TODO</span></td></tr>
+<tr><td>External API cost</td><td>&nbsp;<span class="badge badge-todo">TODO</span></td></tr>
+<tr><td>&lt;strong&gt;Total cost&lt;/strong&gt;</td><td>&nbsp;<span class="badge badge-todo">TODO</span></td></tr>
+<tr><td>&lt;strong&gt;Total carbon&lt;/strong&gt;</td><td>&nbsp;<span class="badge badge-todo">TODO</span></td></tr>
+</tbody></table></div>
+</section>
+<section class="exclusions">
+<h2>Exclusions</h2>
+<div class="card">
+<ul>
+<li>Embodied hardware carbon (manufacturing) is not counted by default.</li>
+<li>Storage and network egress are excluded unless materially relevant.</li>
+</ul></div></section>
+<footer>
+  <p>Generated by <code>cost-running</code> from the YAML cost model. Edit the YAML, then re-render.</p>
+</footer>
+</div>
+</body>
+</html>

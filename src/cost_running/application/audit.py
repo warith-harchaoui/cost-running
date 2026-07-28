@@ -172,6 +172,7 @@ def audit_repo(path: str | Path) -> AuditResult:
 
     model: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
+        "project_name": repo.resolve().name,
         "date_updated": date.today().isoformat(),
         "maturity": "scaffold",
         "canonical_unit_of_work": {
