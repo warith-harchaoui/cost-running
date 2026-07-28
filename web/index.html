@@ -538,8 +538,10 @@
       </div>
       <div class="code-panel" aria-label="CLI example">
         <pre><span class="c"># 1. Detect languages, archetype, paid services → scaffold model</span>
-<span class="c">#    Works on a GitHub URL or a local project folder</span>
+<span class="c">#    GitHub URL:</span>
 cost-running audit https://github.com/karpathy/nanoGPT <span class="kw">--</span>output cost_of_running.yaml
+<span class="c">#    Local project folder:</span>
+cost-running audit /path/to/your/project <span class="kw">--</span>output cost_of_running.yaml
 
 <span class="c"># 2. Measure a representative run</span>
 cost-running measure <span class="kw">--</span> python train.py <span class="kw">--</span>grid-gco2e-per-kwh 55
