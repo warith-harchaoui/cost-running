@@ -56,21 +56,6 @@ FastAPI would have a different archetype.
 
 ---
 
-## warith-harchaoui/cost-running *(this repo)*
-
-| Field | Value |
-|---|---|
-| **Archetype** | inference |
-| **Languages** | Python (38 files) |
-| **Detected services** | Anthropic, OpenAI |
-
-Self-referential audit.  `detect.py` in `infrastructure/` triggers the
-`inference` archetype — a reminder that filename-based detection is a heuristic.
-Anthropic and OpenAI hits come from the skills and documentation referencing their
-APIs.
-
----
-
 ## apache/airflow
 
 | Field | Value |
