@@ -64,3 +64,38 @@ def test_epochs_key_also_reads_as_training(tmp_path):
     assert a.workload_kind == "training"
     assert a.total_work is not None and a.total_work.value == 3
     assert "jax" in a.frameworks
+
+
+def test_capped_entrypoint_finds_train_py(tmp_path):
+    repo = _make_repo(tmp_path, {"train.py": "pass\n"})
+    work = ca.WorkSize(unit="max_iters", value=600000, source="train.py::max_iters")
+    cmd, frac = ca.capped_entrypoint_command(repo, work, cap_fraction=0.001)
+    assert cmd is not None
+    assert cmd[-2] == "--max_iters"
+    assert cmd[-1] == "600"
+    assert abs(frac - 600 / 600000) < 1e-9
+
+
+def test_capped_entrypoint_prefers_train_py_over_main(tmp_path):
+    # train.py has priority over main.py in _ENTRYPOINT_NAMES.
+    repo = _make_repo(tmp_path, {"train.py": "pass\n", "main.py": "pass\n"})
+    work = ca.WorkSize(unit="max_iters", value=1000, source="config.py::max_iters")
+    cmd, _ = ca.capped_entrypoint_command(repo, work)
+    assert "train.py" in cmd[1]
+
+
+def test_capped_entrypoint_caps_at_minimum_one(tmp_path):
+    repo = _make_repo(tmp_path, {"train.py": "pass\n"})
+    work = ca.WorkSize(unit="epochs", value=1, source="config.yaml::epochs")
+    cmd, frac = ca.capped_entrypoint_command(repo, work, cap_fraction=0.001)
+    assert cmd[-1] == "1"
+    assert frac == 1.0
+
+
+def test_capped_entrypoint_no_entrypoint_returns_none(tmp_path):
+    # No train.py / main.py / run.py / benchmark.py in the repo.
+    repo = _make_repo(tmp_path, {"src/model.py": "pass\n"})
+    work = ca.WorkSize(unit="max_iters", value=100000, source="src/config.py::max_iters")
+    cmd, frac = ca.capped_entrypoint_command(repo, work)
+    assert cmd is None
+    assert frac is None

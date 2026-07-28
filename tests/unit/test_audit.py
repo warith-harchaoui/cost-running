@@ -126,3 +126,66 @@ def test_audit_run_with_consent_folds_in_measured_power(tmp_path, monkeypatch):
     assert power["status"] == "estimated"
     assert "Measured on this machine" in power["notes"]
     assert validate_model(result.model).is_valid()
+
+
+def test_audit_capped_entrypoint_projects_completion(tmp_path, monkeypatch):
+    """A capped entrypoint with a known fraction triggers the completion projection."""
+    monkeypatch.setenv("COST_RUNNING_REGISTRY_DIR", str(tmp_path / "cfg"))
+    from cost_running.application.execution import record_run_consent
+
+    record_run_consent(True)
+    # train.py accepts --max_iters; config.py gives the total work size.
+    repo = _make_repo(
+        tmp_path,
+        {
+            "train.py": (
+                "import argparse, sys\n"
+                "p = argparse.ArgumentParser()\n"
+                "p.add_argument('--max_iters', type=int, default=10)\n"
+                "args = p.parse_args()\n"
+                "total = sum(range(args.max_iters))\n"
+            ),
+            "config.py": "max_iters = 600000\n",
+        },
+    )
+    result = audit_repo(repo, run=True, use_llm=False, timeout=30)
+    assert result.slice_result is not None
+    assert result.slice_result.fraction_completed is not None
+    # A completion projection was made and written into the model scenario.
+    scenario = result.model["scenario"]
+    runtime = scenario["runtime_seconds"]
+    assert runtime["status"] == "estimated"
+    assert "slice" in runtime.get("notes", "").lower() or "fraction" in runtime.get("notes", "").lower()
+    assert validate_model(result.model).is_valid()
+
+
+def test_audit_target_gpu_without_local_gpu_records_not_applicable(tmp_path, monkeypatch):
+    """When the local machine has no datacenter GPU, cloud_scenario is not-applicable."""
+    monkeypatch.setenv("COST_RUNNING_REGISTRY_DIR", str(tmp_path / "cfg"))
+    from cost_running.application.execution import record_run_consent
+    from cost_running.infrastructure import hardware
+
+    record_run_consent(True)
+    monkeypatch.setattr(
+        hardware,
+        "detect_local_hardware",
+        lambda: hardware.HardwareProfile(
+            cpu_model=None, core_count=None, memory_gb=None, gpu_model=None, gpu_power_key=None
+        ),
+    )
+    repo = _make_repo(
+        tmp_path,
+        {
+            "train.py": (
+                "import argparse\n"
+                "p = argparse.ArgumentParser()\n"
+                "p.add_argument('--max_iters', type=int, default=5)\n"
+                "args = p.parse_args()\n"
+            ),
+            "config.py": "max_iters = 100\n",
+        },
+    )
+    result = audit_repo(repo, run=True, use_llm=False, timeout=30, target_gpu="H100")
+    cs = result.model["cloud_scenario"]
+    assert cs["applicable"] is False
+    assert any("GPU" in r for r in cs["reasons"])

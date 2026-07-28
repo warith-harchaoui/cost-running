@@ -208,7 +208,10 @@ def _apply_slice_measurement(model: dict[str, Any], slice_result: SliceResult) -
         }
 
     completion = slice_result.completion
-    if completion is not None and completion.applicable:
+    # Only project the whole run when the slice itself succeeded; a failed run
+    # (e.g. the entrypoint did not recognise --max_iters) measured power but
+    # did not cover the claimed fraction of the work.
+    if completion is not None and completion.applicable and m.workload_exit_code == 0:
         model["scenario"]["runtime_seconds"] = {
             "value": round(completion.runtime_seconds, 3),
             "unit": "s",
@@ -237,12 +240,110 @@ def _apply_slice_measurement(model: dict[str, Any], slice_result: SliceResult) -
     }
 
 
+def _apply_gpu_extrapolation(
+    model: dict[str, Any],
+    completion: "CompletionResult",
+    source_gpu_key: str,
+    target_gpu: str,
+) -> None:
+    """Fold a cloud-GPU extrapolation into the model as a ``cloud_scenario`` block.
+
+    Parameters
+    ----------
+    model : dict
+        The scaffold model, mutated in place.
+    completion : CompletionResult
+        The whole-run projection from the measured slice. Must be applicable.
+    source_gpu_key : str
+        The catalog key of the GPU the local measurement ran on.
+    target_gpu : str
+        The catalog key of the target cloud GPU (e.g. ``H100``).
+    """
+    from .extrapolate import extrapolate_gpu
+
+    result = extrapolate_gpu(
+        source_gpu=source_gpu_key,
+        target_gpu=target_gpu,
+        source_runtime_seconds=completion.runtime_seconds,
+    )
+    if not result.applicable:
+        model["cloud_scenario"] = {
+            "target_gpu": target_gpu,
+            "applicable": False,
+            "reasons": result.reasons,
+            "status": "estimated",
+        }
+        return
+    model["cloud_scenario"] = {
+        "target_gpu": target_gpu,
+        "applicable": True,
+        "runtime_seconds": {"value": round(result.runtime_seconds, 3), "status": "estimated"},
+        "active_power_w": {"value": result.active_power_w, "status": "estimated"},
+        "energy_kwh": {"value": result.energy_kwh, "status": "estimated"},
+        "method": result.method,
+        "assumptions": result.assumptions,
+        "limits": result.limits,
+    }
+
+
+def _maybe_apply_gpu_extrapolation(
+    model: dict[str, Any],
+    slice_result: SliceResult,
+    target_gpu: str,
+) -> None:
+    """Attempt the local→cloud extrapolation, recording why it is not applicable when blocked.
+
+    Requires a whole-run completion projection (i.e. the slice ran with a known
+    ``fraction_completed``) and a datacenter GPU on the local machine to act as
+    the source. Records a ``cloud_scenario`` block either way.
+
+    Parameters
+    ----------
+    model : dict
+        The scaffold model, mutated in place.
+    slice_result : SliceResult
+        The measured slice (may or may not have a completion projection).
+    target_gpu : str
+        The catalog key of the target cloud GPU (e.g. ``H100``).
+    """
+    from ..infrastructure.hardware import detect_local_hardware
+
+    completion = slice_result.completion
+    if completion is None or not completion.applicable:
+        model["cloud_scenario"] = {
+            "target_gpu": target_gpu,
+            "applicable": False,
+            "reasons": [
+                "No whole-run projection available: the slice had no known "
+                "fraction_completed (no capped entrypoint was run)."
+            ],
+            "status": "estimated",
+        }
+        return
+
+    hw = detect_local_hardware()
+    if hw.gpu_power_key is None:
+        model["cloud_scenario"] = {
+            "target_gpu": target_gpu,
+            "applicable": False,
+            "reasons": [
+                "No datacenter GPU detected on the source machine; "
+                "cannot re-base the runtime by throughput ratio."
+            ],
+            "status": "estimated",
+        }
+        return
+
+    _apply_gpu_extrapolation(model, completion, hw.gpu_power_key, target_gpu)
+
+
 def audit_repo(
     path: str | Path,
     *,
     run: bool = False,
     use_llm: bool = True,
     timeout: float = 120.0,
+    target_gpu: str | None = None,
 ) -> AuditResult:
     """Audit a local repository and produce a scaffold cost model.
 
@@ -263,6 +364,12 @@ def audit_repo(
         when no server is running.
     timeout : float, optional
         Wall-clock cap for the measured slice, in seconds.
+    target_gpu : str or None, optional
+        When given (e.g. ``"H100"``), add a ``cloud_scenario`` block that
+        extrapolates the projected whole-run cost onto that GPU. Requires
+        ``run=True``, a capped entrypoint slice (so a ``fraction_completed`` is
+        known), and a datacenter GPU on the local machine; missing any of these
+        records a not-applicable ``cloud_scenario`` with the reason.
 
     Returns
     -------
@@ -373,6 +480,8 @@ def audit_repo(
         slice_result = _maybe_run_slice(repo, analysis, timeout, model)
         if slice_result is not None:
             _apply_slice_measurement(model, slice_result)
+            if target_gpu:
+                _maybe_apply_gpu_extrapolation(model, slice_result, target_gpu)
 
     return AuditResult(
         name=repo.resolve().name,
@@ -393,12 +502,18 @@ def _maybe_run_slice(
 ) -> SliceResult | None:
     """Run a measured slice when consent is granted and a command is known.
 
+    Prefers a capped entrypoint slice when a work size was detected statically:
+    running ``train.py --max_iters 600`` covers a known fraction (600/600000) of
+    the workload, so :func:`extrapolate_to_completion` can project the full run
+    honestly. Falls back to the repo's test suite when no entrypoint is found;
+    in that case ``fraction_completed`` is ``None`` and no projection is made.
+
     Parameters
     ----------
     repo : pathlib.Path
         Repository root.
     analysis : ca.StructuralAnalysis
-        The structural reading, used to pick the slice command (its tests).
+        The structural reading, used to pick the slice command.
     timeout : float
         Wall-clock cap for the slice.
     model : dict
@@ -415,13 +530,28 @@ def _maybe_run_slice(
             "Slice not run: consent to execute repository code was not granted."
         )
         return None
-    command = analysis.test_command
+
+    # First choice: a capped entrypoint with a statically known fraction. This is
+    # the honest path: the fraction is file-sourced (e.g. 600 / 600000 max_iters),
+    # not guessed, so extrapolate_to_completion can project the whole run.
+    command: list[str] | None = None
+    fraction_completed: float | None = None
+    if analysis.total_work is not None:
+        command, fraction_completed = ca.capped_entrypoint_command(repo, analysis.total_work)
+
+    # Second choice: the repo's own test suite. Tests don't map to the workload's
+    # total_work fraction, so we leave fraction_completed as None and skip the
+    # completion projection.
+    if command is None:
+        command = analysis.test_command
+
     if command is None:
         model["analysis"]["run_note"] = (
-            "Slice not run: no runnable test suite was detected in the repository."
+            "Slice not run: no runnable entrypoint or test suite was detected."
         )
         return None
-    return run_slice(repo, command, timeout=timeout, profile=True)
+
+    return run_slice(repo, command, timeout=timeout, profile=True, fraction_completed=fraction_completed)
 
 
 def audit_github_repo(
@@ -430,6 +560,7 @@ def audit_github_repo(
     run: bool = False,
     use_llm: bool = True,
     timeout: float = 120.0,
+    target_gpu: str | None = None,
 ) -> AuditResult:
     """Clone a public GitHub repository and audit it.
 
@@ -445,6 +576,8 @@ def audit_github_repo(
         Let a local Ollama model classify the workload shape. See :func:`audit_repo`.
     timeout : float, optional
         Wall-clock cap for the measured slice, in seconds.
+    target_gpu : str or None, optional
+        Cloud GPU to extrapolate onto. See :func:`audit_repo`.
 
     Returns
     -------
@@ -463,7 +596,7 @@ def audit_github_repo(
 
     owner, repo_name = parse_github_ref(ref)
     with cloned_repo(ref) as path:
-        result = audit_repo(path, run=run, use_llm=use_llm, timeout=timeout)
+        result = audit_repo(path, run=run, use_llm=use_llm, timeout=timeout, target_gpu=target_gpu)
     # Replace the temp-dir basename with the real repo name.
     result.name = repo_name
     result.model["project_name"] = repo_name

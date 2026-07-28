@@ -261,6 +261,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     use_llm = not getattr(args, "no_llm", False)
     run = getattr(args, "run", False)
     timeout = getattr(args, "timeout", 120.0)
+    target_gpu = getattr(args, "target_gpu", None)
 
     # Running repository code is the user's explicit decision, taken once. Ask
     # before anything is cloned or executed; a refusal falls back to a static
@@ -275,9 +276,13 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     try:
         if is_github_ref(args.path):
             logger.info("Cloning %s …", args.path)
-            result = audit_github_repo(args.path, run=run, use_llm=use_llm, timeout=timeout)
+            result = audit_github_repo(
+                args.path, run=run, use_llm=use_llm, timeout=timeout, target_gpu=target_gpu
+            )
         else:
-            result = audit_repo(args.path, run=run, use_llm=use_llm, timeout=timeout)
+            result = audit_repo(
+                args.path, run=run, use_llm=use_llm, timeout=timeout, target_gpu=target_gpu
+            )
     except (NotADirectoryError, OSError, RuntimeError, ValueError) as exc:
         logger.error("Cannot audit %s: %s", args.path, exc)
         return EXIT_USAGE
@@ -564,6 +569,18 @@ def make_parser() -> argparse.ArgumentParser:
         type=float,
         default=120.0,
         help="Wall-clock cap for the measured slice, in seconds (with --run).",
+    )
+    audit_parser.add_argument(
+        "--target-gpu",
+        default=None,
+        dest="target_gpu",
+        metavar="KEY",
+        help=(
+            "Extrapolate the projected whole-run cost onto this cloud GPU "
+            "(e.g. H100, A100-80GB). Requires --run and a capped entrypoint slice "
+            "(detected max_iters / epochs). A not-applicable note is recorded if "
+            "the local machine has no datacenter GPU or no completion projection."
+        ),
     )
     audit_parser.set_defaults(func=_cmd_audit)
 

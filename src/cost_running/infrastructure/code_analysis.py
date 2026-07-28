@@ -221,6 +221,60 @@ def _extract_work_size(repo: Path) -> WorkSize | None:
     return None
 
 
+# Well-known entrypoints to try for a capped real-workload slice, in priority
+# order. These are the scripts most projects run to do the actual work.
+_ENTRYPOINT_NAMES: tuple[str, ...] = ("train.py", "main.py", "run.py", "benchmark.py")
+
+
+def capped_entrypoint_command(
+    repo: Path,
+    work_size: WorkSize,
+    cap_fraction: float = 0.001,
+) -> tuple[list[str], float] | tuple[None, None]:
+    """Return a command that runs a capped slice of the main entrypoint, and the fraction.
+
+    Looks for a well-known entrypoint file in the repo root, then builds a command
+    that caps the run to ``K = max(1, int(total_work * cap_fraction))`` iterations
+    by passing ``--{unit} K`` to the script. The caller is responsible for actually
+    running the command and for handling a non-zero exit (the script may not accept
+    the flag; the caller should fall back or record an honest exit code).
+
+    Parameters
+    ----------
+    repo : pathlib.Path
+        Repository root.
+    work_size : WorkSize
+        The statically detected work size (e.g. ``max_iters = 600000``).
+    cap_fraction : float, optional
+        Fraction of the total work to cap the slice to. Defaults to 0.1 % so the
+        slice completes quickly even on slow machines.
+
+    Returns
+    -------
+    tuple of (list of str, float) or (None, None)
+        The command (e.g. ``[sys.executable, "train.py", "--max_iters", "600"]``)
+        and the fraction ``K / total_work``, or ``(None, None)`` when no
+        well-known entrypoint file is found in the repo root.
+
+    Examples
+    --------
+    >>> import tempfile, pathlib
+    >>> d = pathlib.Path(tempfile.mkdtemp())
+    >>> _ = (d / "train.py").write_text("pass")
+    >>> w = WorkSize(unit="max_iters", value=600000, source="train.py::max_iters")
+    >>> cmd, frac = capped_entrypoint_command(d, w, cap_fraction=0.001)
+    >>> cmd[-2], cmd[-1], round(frac, 6)
+    ('--max_iters', '600', 0.001)
+    """
+    for name in _ENTRYPOINT_NAMES:
+        entry = repo / name
+        if entry.is_file():
+            K = max(1, int(work_size.value * cap_fraction))
+            fraction = K / work_size.value
+            return [sys.executable, str(entry), f"--{work_size.unit}", str(K)], fraction
+    return None, None
+
+
 def _detect_tests(repo: Path) -> tuple[bool, list[str] | None]:
     """Return whether tests exist and a bounded command to run a slice of them.
 
