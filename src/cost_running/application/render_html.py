@@ -713,6 +713,49 @@ figure svg { display: block; color: var(--color-text); }
 /* ===== Footer ===== */
 footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--color-border); font-size: 0.8rem; color: var(--color-text-muted); }
 
+/* ===== Site nav ===== */
+.site-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+.site-nav-brand {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+.site-nav-brand span { color: var(--color-text); font-weight: 400; }
+.site-nav-links { display: flex; align-items: center; gap: 1.25rem; list-style: none; }
+.site-nav-links a {
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+.site-nav-links a:hover { color: var(--color-accent); }
+.btn-theme {
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.25rem 0.55rem;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--color-text);
+  line-height: 1;
+  transition: border-color 0.15s;
+}
+.btn-theme:hover { border-color: var(--color-accent); }
+@media print { .site-nav { display: none; } }
+
 /* ===== Deployment dropdowns ===== */
 .deploy-select {
   font-family: var(--font-mono);
@@ -765,6 +808,26 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--color-
   transition: opacity 0.15s;
 }
 .btn-pdf:hover { opacity: 0.85; }
+
+/* ===== Theme toggle overrides (JS sets data-theme on <html>) ===== */
+html[data-theme="light"] {
+  --color-bg: #F8F8F8; --color-surface: #FFFFFF; --color-text: #1A1A1A;
+  --color-text-muted: #555555; --color-border: #E0E0E0; --color-accent: #007AFF;
+  --color-measured: #007AFF; --color-estimated: #FF9500;
+  --color-placeholder: #808080; --color-todo: #FF3B30;
+  --shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+html[data-theme="dark"] {
+  --color-bg: #111118; --color-surface: #1E1E2A; --color-text: #EFEFEF;
+  --color-text-muted: #999999; --color-border: #2E2E3E; --color-accent: #4DA3FF;
+  --color-measured: #4DA3FF; --color-estimated: #FFB340;
+  --color-placeholder: #AAAAAA; --color-todo: #FF6B60;
+  --shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+html[data-theme="dark"] .badge-measured   { background: #003366; color: #7FC3FF; }
+html[data-theme="dark"] .badge-estimated  { background: #5A3400; color: #FFD080; }
+html[data-theme="dark"] .badge-placeholder{ background: #333333; color: #BBBBBB; }
+html[data-theme="dark"] .badge-todo       { background: #5C0000; color: #FF9999; }
 
 /* ===== Print / PDF ===== */
 @media print {
@@ -828,7 +891,11 @@ def _render_unit_section(data: dict[str, Any]) -> str:
     cuow = data.get("canonical_unit_of_work")
     if not isinstance(cuow, dict):
         return ""
-    parts = ['<section class="unit">', "<h2>Canonical unit of work</h2>", '<div class="card">']
+    parts = [
+        '<section class="unit">',
+        '<h2 data-i18n="h2.unit">Canonical unit of work</h2>',
+        '<div class="card">',
+    ]
     parts.append('<dl class="kv-list">')
     parts.append(
         f"<dt>Unit</dt><dd>{_esc(cuow.get('name'))}&nbsp;{_badge(cuow.get('status'))}</dd>"
@@ -899,7 +966,11 @@ def _render_deployment_section(data: dict[str, Any]) -> str:
     deployment = data.get("deployment")
     if not isinstance(deployment, dict) or not deployment:
         return ""
-    parts = ['<section class="deployment">', "<h2>Deployment</h2>", '<div class="card">']
+    parts = [
+        '<section class="deployment">',
+        '<h2 data-i18n="h2.deployment">Deployment</h2>',
+        '<div class="card">',
+    ]
     parts.append('<dl class="kv-list">')
     for key, value in deployment.items():
         if key == "country":
@@ -969,7 +1040,7 @@ def _render_scenarios_section(data: dict[str, Any]) -> str:
     scenarios = normalize_scenarios(data)
     if not scenarios:
         return ""
-    parts = ['<section class="scenarios">', "<h2>Scenarios</h2>"]
+    parts = ['<section class="scenarios">', '<h2 data-i18n="h2.scenarios">Scenarios</h2>']
     for sc in scenarios:
         parts.append(_render_scenario_section(sc))
     if len(scenarios) > 1:
@@ -992,10 +1063,10 @@ def _render_honesty_section(data: dict[str, Any]) -> str:
         return ""
     parts = [
         '<section class="honesty">',
-        "<h2>Honesty summary</h2>",
+        '<h2 data-i18n="h2.honesty">Honesty summary</h2>',
         f'<figure role="img" aria-label="Honesty status distribution">'
         f"{svg}"
-        f"<figcaption>Distribution of honesty labels across all numeric quantities in this model. "
+        f'<figcaption data-i18n="honesty.caption">Distribution of honesty labels across all numeric quantities in this model. '
         f"<em>measured</em> = real observation; "
         f"<em>estimated</em> = computed from sourced assumptions; "
         f"<em>placeholder</em> = structural stand-in; "
@@ -1010,7 +1081,11 @@ def _render_exclusions_section(data: dict[str, Any]) -> str:
     exclusions = data.get("exclusions")
     if not isinstance(exclusions, list) or not exclusions:
         return ""
-    parts = ['<section class="exclusions">', "<h2>Exclusions</h2>", '<div class="card">']
+    parts = [
+        '<section class="exclusions">',
+        '<h2 data-i18n="h2.exclusions">Exclusions</h2>',
+        '<div class="card">',
+    ]
     parts.append("<ul>")
     for item in exclusions:
         parts.append(f"<li>{_esc(item)}</li>")
@@ -1018,15 +1093,94 @@ def _render_exclusions_section(data: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
+_THEME_JS = """<script>
+(function(){
+  /* ---- theme ---- */
+  var TICONS={light:'🌞',dark:'🌛'};
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme',t);
+    var btn=document.getElementById('cr-theme-btn');
+    if(btn) btn.textContent=t==='dark'?TICONS.light:TICONS.dark;
+    try{localStorage.setItem('cr-theme',t);}catch(e){}
+  }
+  function toggleTheme(){
+    var cur=document.documentElement.getAttribute('data-theme')||
+      (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    applyTheme(cur==='dark'?'light':'dark');
+  }
+  window.crToggleTheme=toggleTheme;
+  var savedTheme;
+  try{savedTheme=localStorage.getItem('cr-theme');}catch(e){}
+  if(savedTheme) applyTheme(savedTheme);
+
+  /* ---- i18n ---- */
+  var T={
+    en:{
+      'nav.gallery':'← Gallery','nav.github':'⭐️ on GitHub','nav.pdf':'⬇ Save as PDF',
+      'h2.honesty':'Honesty summary','h2.unit':'Canonical unit of work',
+      'h2.deployment':'Deployment','h2.scenarios':'Scenarios','h2.exclusions':'Exclusions',
+      'honesty.caption':'Distribution of honesty labels across all numeric quantities in this model. <em>measured</em> = real observation; <em>estimated</em> = computed from sourced assumptions; <em>placeholder</em> = structural stand-in; <em>TODO</em> = must be filled before the model can be trusted.',
+      'footer':'Generated by <code>cost-running</code> from the YAML cost model. Edit the YAML, then re-render.',
+      'deploy.hint.none':'set a country to see grid intensity',
+      'scenario.caption.suffix':'Bar colour encodes honesty status; text labels repeat it. All cost and emission dimensions: lower is better.'
+    },
+    fr:{
+      'nav.gallery':'← Galerie','nav.github':'⭐️ sur GitHub','nav.pdf':'⬇ Enregistrer en PDF',
+      'h2.honesty':'Résumé d\'honnêteté','h2.unit':'Unité de travail canonique',
+      'h2.deployment':'Déploiement','h2.scenarios':'Scénarios','h2.exclusions':'Exclusions',
+      'honesty.caption':'Distribution des statuts d\'honnêteté sur toutes les quantités numériques du modèle. <em>measured</em> = observation réelle ; <em>estimated</em> = calculé à partir d\'hypothèses sourcées ; <em>placeholder</em> = espace réservé structurel ; <em>TODO</em> = doit être rempli avant que le modèle soit fiable.',
+      'footer':'Généré par <code>cost-running</code> depuis le modèle YAML. Modifiez le YAML, puis régénérez.',
+      'deploy.hint.none':'choisissez un pays pour voir l\'intensité carbone',
+      'scenario.caption.suffix':'La couleur encode le statut d\'honnêteté ; les étiquettes textuelles le répètent. Toutes les dimensions de coût et d\'émission : plus bas = mieux.'
+    }
+  };
+  var _lang='en';
+  function applyLang(l){
+    _lang=l;
+    var d=T[l]||T.en;
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var k=el.getAttribute('data-i18n');
+      if(d[k]!==undefined) el.innerHTML=d[k];
+    });
+    var btn=document.getElementById('cr-lang-btn');
+    if(btn) btn.textContent=l==='fr'?'🇬🇧':'🇫🇷';
+    try{localStorage.setItem('cr-lang',l);}catch(e){}
+  }
+  function toggleLang(){ applyLang(_lang==='fr'?'en':'fr'); }
+  window.crToggleLang=toggleLang;
+  var savedLang;
+  try{savedLang=localStorage.getItem('cr-lang');}catch(e){}
+  if(savedLang&&T[savedLang]) applyLang(savedLang);
+})();
+</script>"""
+
+
+def _render_nav(back_url: str | None = None) -> str:
+    """Return the sticky site nav consistent with the project website."""
+    gallery_href = (
+        _esc(back_url) if back_url else "https://github.com/warith-harchaoui/cost-running"
+    )
+    return (
+        '<nav class="site-nav" aria-label="Site navigation">'
+        '<a class="site-nav-brand" href="https://github.com/warith-harchaoui/cost-running">'
+        "cost<span>-running</span></a>"
+        '<ul class="site-nav-links">'
+        f'<li><a href="{gallery_href}" data-i18n="nav.gallery">← Gallery</a></li>'
+        '<li><a href="https://github.com/warith-harchaoui/cost-running" data-i18n="nav.github">⭐️ on GitHub</a></li>'
+        '<li><button id="cr-lang-btn" class="btn-theme" onclick="crToggleLang()" '
+        'aria-label="Toggle language">🇫🇷</button></li>'
+        '<li><button id="cr-theme-btn" class="btn-theme" onclick="crToggleTheme()" '
+        'aria-label="Toggle dark/light theme">🌛</button></li>'
+        "</ul>"
+        "</nav>"
+    )
+
+
 def _render_toolbar(back_url: str | None = None) -> str:
-    """Return the report toolbar with a PDF button and optional back link."""
-    back = ""
-    if back_url:
-        back = f'<a href="{_esc(back_url)}">← Gallery</a>'
+    """Return the report toolbar (PDF button only — back link is in the nav)."""
     return (
         '<div class="report-toolbar">'
-        f"{back}"
-        '<button class="btn-pdf" onclick="window.print()">⬇ Save as PDF</button>'
+        '<button class="btn-pdf" onclick="window.print()" data-i18n="nav.pdf">⬇ Save as PDF</button>'
         "</div>"
     )
 
@@ -1073,6 +1227,8 @@ def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
     project_name = _esc(data.get("project_name", "Cost of running"))
     date_updated = _esc(data.get("date_updated", ""))
 
+    nav = _render_nav(back_url)
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1083,12 +1239,14 @@ def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
   <style>
 {_CSS}
   </style>
+{_THEME_JS}
 </head>
 <body>
+{nav}
 <div class="page">
 {body}
 <footer>
-  <p>Generated by <code>cost-running</code> from the YAML cost model. Edit the YAML, then re-render.</p>
+  <p data-i18n="footer">Generated by <code>cost-running</code> from the YAML cost model. Edit the YAML, then re-render.</p>
 </footer>
 </div>
 </body>
