@@ -48,7 +48,7 @@ def test_detect_services_matches_catalog_and_keeps_evidence(tmp_path):
 
 def test_audit_produces_valid_scaffold(tmp_path):
     repo = _make_repo(tmp_path, {"predict.py": "import anthropic\n"})
-    result = audit_repo(repo)
+    result = audit_repo(repo, use_llm=False)
     # The scaffold is a valid model and is marked as a scaffold.
     assert result.model["maturity"] == "scaffold"
     assert validate_model(result.model).is_valid()
@@ -57,7 +57,7 @@ def test_audit_produces_valid_scaffold(tmp_path):
 
 def test_audit_prefills_pricing_from_catalog(tmp_path):
     repo = _make_repo(tmp_path, {"app.py": "import openai\n"})
-    result = audit_repo(repo)
+    result = audit_repo(repo, use_llm=False)
     apis = result.model["pricing"]["external_apis"]
     openai_block = next(b for b in apis if b["service_key"] == "openai")
     # The pricing block points at the provider page; price and usage stay TODO.
@@ -69,3 +69,60 @@ def test_audit_prefills_pricing_from_catalog(tmp_path):
 def test_audit_rejects_non_directory(tmp_path):
     with pytest.raises(NotADirectoryError):
         audit_repo(tmp_path / "does-not-exist")
+
+
+def test_audit_attaches_static_analysis_block(tmp_path):
+    repo = _make_repo(
+        tmp_path,
+        {"train.py": "import torch\nmax_iters = 500000\n"},
+    )
+    result = audit_repo(repo, use_llm=False)
+    analysis = result.model["analysis"]
+    # The static read owns the block and the sourced work-size number.
+    assert analysis["evidence_source"] == "static"
+    assert analysis["workload_kind"] == "training"
+    assert analysis["total_work_value"] == 500000
+    assert analysis["total_work_source"] == "train.py::max_iters"
+    # The block carries no `value` node, so it does not skew the honesty counts.
+    assert "value" not in analysis
+    assert validate_model(result.model).is_valid()
+
+
+def test_audit_run_without_consent_records_note_and_completes(tmp_path, monkeypatch):
+    # Point consent storage at an empty temp dir: no consent has been granted.
+    monkeypatch.setenv("COST_RUNNING_REGISTRY_DIR", str(tmp_path / "cfg"))
+    repo = _make_repo(
+        tmp_path,
+        {"train.py": "import torch\n", "tests/test_x.py": "def test_x():\n    assert True\n"},
+    )
+    result = audit_repo(repo, run=True, use_llm=False)
+    # Nothing ran, but the audit still produced a valid model with an honest note.
+    assert result.slice_result is None
+    assert "consent" in result.model["analysis"]["run_note"].lower()
+    assert "measurement" not in result.model
+    assert validate_model(result.model).is_valid()
+
+
+def test_audit_run_with_consent_folds_in_measured_power(tmp_path, monkeypatch):
+    monkeypatch.setenv("COST_RUNNING_REGISTRY_DIR", str(tmp_path / "cfg"))
+    from cost_running.application.execution import record_run_consent
+
+    record_run_consent(True)
+    repo = _make_repo(
+        tmp_path,
+        {
+            "train.py": "import torch\n",
+            "tests/test_x.py": "def test_x():\n    assert sum(range(1000)) > 0\n",
+        },
+    )
+    result = audit_repo(repo, run=True, use_llm=False, timeout=60)
+    assert result.slice_result is not None
+    # A measurement block records what actually ran.
+    measurement = result.model["measurement"]
+    assert measurement["exit_code"] == 0
+    assert measurement["slice_seconds"] > 0
+    # The measured power replaced the archetype guess, still honestly `estimated`.
+    power = result.model["assumptions"]["average_power_draw_watts"]
+    assert power["status"] == "estimated"
+    assert "Measured on this machine" in power["notes"]
+    assert validate_model(result.model).is_valid()

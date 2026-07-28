@@ -258,12 +258,26 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         ``0`` on success, ``2`` when the path is not a directory or the clone
         fails.
     """
+    use_llm = not getattr(args, "no_llm", False)
+    run = getattr(args, "run", False)
+    timeout = getattr(args, "timeout", 120.0)
+
+    # Running repository code is the user's explicit decision, taken once. Ask
+    # before anything is cloned or executed; a refusal falls back to a static
+    # audit rather than aborting.
+    if run:
+        from ..application.execution import require_run_consent
+
+        if not require_run_consent():
+            logger.warning("Consent to run repository code was declined; running a static audit.")
+            run = False
+
     try:
         if is_github_ref(args.path):
             logger.info("Cloning %s …", args.path)
-            result = audit_github_repo(args.path)
+            result = audit_github_repo(args.path, run=run, use_llm=use_llm, timeout=timeout)
         else:
-            result = audit_repo(args.path)
+            result = audit_repo(args.path, run=run, use_llm=use_llm, timeout=timeout)
     except (NotADirectoryError, OSError, RuntimeError, ValueError) as exc:
         logger.error("Cannot audit %s: %s", args.path, exc)
         return EXIT_USAGE
@@ -531,6 +545,25 @@ def make_parser() -> argparse.ArgumentParser:
     )
     audit_parser.add_argument(
         "--json", action="store_true", help="Also print the audit report to stdout."
+    )
+    audit_parser.add_argument(
+        "--run",
+        action="store_true",
+        help=(
+            "Execute a bounded slice (the repo's own tests) to measure real power. "
+            "Runs untrusted code on your machine, no sandbox; asks for consent once."
+        ),
+    )
+    audit_parser.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Skip the local-Ollama structural classification (static analysis only).",
+    )
+    audit_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="Wall-clock cap for the measured slice, in seconds (with --run).",
     )
     audit_parser.set_defaults(func=_cmd_audit)
 
