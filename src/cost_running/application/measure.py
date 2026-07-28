@@ -40,6 +40,7 @@ from __future__ import annotations
 import subprocess
 import time
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 
 from ..domain.taxonomy import ESTIMATED
 from ..infrastructure import green_algorithms as ga
@@ -149,6 +150,8 @@ def measure_command(
     *,
     grid_gco2e_per_kwh: float | None = None,
     pue: float = ga.PUE_DEFAULTS["local"],
+    cwd: str | Path | None = None,
+    timeout: float | None = None,
 ) -> MeasurementResult:
     """Run a command and measure its cost on this machine.
 
@@ -161,6 +164,15 @@ def measure_command(
         when no sourced intensity is available, rather than inventing one.
     pue : float, optional
         Datacenter overhead. Defaults to ``1.0`` (a local machine).
+    cwd : str or pathlib.Path or None, optional
+        Working directory to run the command in. Used to measure a slice of a
+        cloned repository from its own root.
+    timeout : float or None, optional
+        Hard wall-clock cap in seconds. When the command overruns it, the process
+        is killed and the run is measured as a truncated slice: the duration is
+        the timeout, the exit code is ``None``, and a warning records the
+        truncation. This is how a long workload (a full training run) is sampled
+        without waiting for it to finish.
 
     Returns
     -------
@@ -184,13 +196,27 @@ def measure_command(
 
     energy_before = read_rapl_energy_uj()
     start = time.perf_counter()
-    proc = subprocess.run(command, check=False)
+    # A timeout kills the child and raises; we treat that as a truncated slice
+    # rather than a failure, because sampling a long run is the intended use.
+    timed_out = False
+    returncode: int | None
+    try:
+        proc = subprocess.run(command, check=False, cwd=cwd, timeout=timeout)
+        returncode = proc.returncode
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        returncode = None
     duration = time.perf_counter() - start
     energy_after = read_rapl_energy_uj()
 
-    if proc.returncode != 0:
+    if timed_out:
         warnings.append(
-            f"Workload exited with code {proc.returncode}; the energy figure "
+            f"Slice truncated at the {timeout:g}s timeout; measured only the sampled "
+            "interval, not a completed run."
+        )
+    elif returncode != 0:
+        warnings.append(
+            f"Workload exited with code {returncode}; the energy figure "
             "reflects a failed run and may not represent typical execution cost."
         )
 
@@ -233,7 +259,7 @@ def measure_command(
     return MeasurementResult(
         command=" ".join(command),
         duration_seconds=duration,
-        workload_exit_code=proc.returncode,
+        workload_exit_code=returncode,
         cpu_user_seconds=cpu_user,
         cpu_system_seconds=cpu_system,
         peak_memory_kb=peak_kb,
