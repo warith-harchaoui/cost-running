@@ -35,11 +35,12 @@ surface are working and tested. The other surfaces are planned and tracked in
 | Surface | State |
 |---|---|
 | Python library (core + application) | Working, tested |
-| Command line (`cost-running`) | Working, tested: `init`, `validate`, `render`, `measure` |
+| Command line: `init`, `validate`, `render` (md + **html**), `measure`, `diff`, `audit`, `hardware`, `service` | Working, tested |
 | Local hardware detection and grounded extrapolation | Working, tested |
-| Community catalog (hardware + services), `hardware`/`service` list and add | Working, tested. See [`docs/en/catalog.md`](docs/en/catalog.md) |
-| `audit` (languages, archetype, paid-service detection with prefilled pricing) | Working, tested |
-| Command line: `diff` | Planned |
+| Community catalog (hardware + services) | Working, tested. See [`docs/en/catalog.md`](docs/en/catalog.md) |
+| Honesty validation (status, weakest-link, non-negative, provenance) | Working, tested |
+| HTML report with inline SVG figures (Ralph Eyeball gate) | Working |
+| DOCX + PDF (md2star + `assets/report/template.docx`) | Planned |
 | HTTP API (FastAPI) | Planned |
 | MCP server | Planned |
 | GUI | Planned |
@@ -98,4 +99,4 @@ ruff format --check src tests
 
 ## License
 
-Released into the public domain under the [Unlicense](LICENSE).
+Released under the [BSD 3-Clause License](LICENSE).

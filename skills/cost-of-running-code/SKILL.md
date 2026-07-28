@@ -10,7 +10,7 @@ description: >-
   (Markdown, web, DOCX, or PDF). Do not use for cloud-billing dashboards, for
   observability or profiling of a live service, or for training-only questions
   with no per-unit cost.
-license: Unlicense
+license: BSD-3-Clause
 compatibility: >-
   Requires Python 3.10+ and the cost-running package (pip install cost-running).
   Web reports use the sprezzature skills; DOCX and PDF use md2star.

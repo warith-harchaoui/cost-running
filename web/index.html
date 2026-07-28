@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="cost-running — measure the real cost of running code: money, time, energy, carbon, water. Every number carries an honesty label.">
+  <meta property="og:title" content="cost-running">
+  <meta property="og:description" content="Measure the cost of running code in the wide sense — money, time, energy, carbon, water — with an honesty taxonomy built in.">
+  <meta property="og:type" content="website">
+  <title>cost-running — measure the cost of running code</title>
+  <style>
+    /* ===== Design tokens — sprezzature palette ===== */
+    :root {
+      --bg: #F8F8F8;
+      --surface: #FFFFFF;
+      --text: #1A1A1A;
+      --text-muted: #555;
+      --border: #E0E0E0;
+      --accent: #007AFF;
+      --accent-light: #CCE4FF;
+      --measured: #007AFF;
+      --estimated: #FF9500;
+      --placeholder: #808080;
+      --todo: #FF3B30;
+      --green: #28CD41;
+      --font-sans: Roboto, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-serif: "Roboto Serif", ui-serif, Georgia, Cambria, serif;
+      --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, "Courier New", monospace;
+      --radius: 10px;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0F0F14;
+        --surface: #1C1C24;
+        --text: #EFEFEF;
+        --text-muted: #999;
+        --border: #2A2A36;
+        --accent: #4DA3FF;
+        --accent-light: #003366;
+        --measured: #4DA3FF;
+        --estimated: #FFB340;
+        --placeholder: #AAAAAA;
+        --todo: #FF6B60;
+        --green: #5CE870;
+        --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
+        --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
+      }
+    }
+
+    /* ===== Reset ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+    }
+
+    /* ===== Skip link ===== */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 0;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.875rem;
+      transition: top 0.15s;
+    }
+    .skip-link:focus { top: 0; }
+
+    /* ===== Nav ===== */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
+      box-shadow: var(--shadow-sm);
+    }
+    .nav-brand {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+      letter-spacing: -0.01em;
+    }
+    .nav-brand span { color: var(--text); font-weight: 400; }
+    .nav-links { display: flex; gap: 1.5rem; list-style: none; }
+    .nav-links a {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .nav-links a:hover, .nav-links a:focus { color: var(--accent); }
+
+    /* ===== Hero ===== */
+    .hero {
+      padding: 5rem 1.5rem 2.5rem;
+      max-width: 860px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .hero-eyebrow {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 code {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.92em;
+      background: var(--accent-light);
+      padding: 0.05em 0.3em;
+      border-radius: 6px;
+    }
+    .hero-sub {
+      font-size: 1.125rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+    .hero-actions {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.7rem 1.4rem;
+      border-radius: var(--radius);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.85; box-shadow: var(--shadow-md); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1.5px solid var(--border);
+    }
+
+    /* ===== Layout ===== */
+    .container { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
+    section { padding: 3rem 0; }
+    section + section { border-top: 1px solid var(--border); }
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      margin-bottom: 0.5rem;
+    }
+    .section-sub {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+      max-width: 560px;
+    }
+
+    /* ===== Honesty taxonomy ===== */
+    .taxonomy-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    .taxonomy-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .taxonomy-card .badge {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 0.2rem 0.55rem;
+      border-radius: 5px;
+      margin-bottom: 0.6rem;
+    }
+    .badge-measured   { background: #CCE4FF; color: #004999; }
+    .badge-estimated  { background: #FFF0CC; color: #7A4800; }
+    .badge-placeholder{ background: #EEEEEE; color: #444; }
+    .badge-todo       { background: #FFD8D6; color: #8B0000; }
+    @media (prefers-color-scheme: dark) {
+      .badge-measured   { background: #003366; color: #7FC3FF; }
+      .badge-estimated  { background: #5A3400; color: #FFD080; }
+      .badge-placeholder{ background: #2A2A2A; color: #BBBBBB; }
+      .badge-todo       { background: #5C0000; color: #FF9999; }
+    }
+    .taxonomy-card h3 {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+    }
+    .taxonomy-card p { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* ===== Features grid ===== */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .feature-icon {
+      font-size: 1.75rem;
+      margin-bottom: 0.75rem;
+    }
+    .feature-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+    .feature-card p { font-size: 0.875rem; color: var(--text-muted); }
+
+    /* ===== Code block ===== */
+    .code-panel {
+      background: #0D1117;
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      overflow-x: auto;
+      box-shadow: var(--shadow-md);
+    }
+    .code-panel pre {
+      font-family: var(--font-mono);
+      font-size: 0.875rem;
+      line-height: 1.7;
+      color: #C9D1D9;
+    }
+    .code-panel .c  { color: #8B949E; }
+    .code-panel .kw { color: #FF7B72; }
+    .code-panel .s  { color: #A5D6FF; }
+    .code-panel .cm { color: #79C0FF; }
+    .code-panel .o  { color: #F0883E; }
+
+    /* ===== Workflow diagram ===== */
+    .workflow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin: 2rem 0;
+    }
+    .workflow-step {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.6rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      white-space: nowrap;
+    }
+    .workflow-arrow {
+      color: var(--text-muted);
+      font-size: 1.2rem;
+      padding: 0 0.5rem;
+    }
+
+    /* ===== Status table ===== */
+    .status-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+    .status-table th {
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      background: var(--border);
+      font-weight: 600;
+    }
+    .status-table td {
+      padding: 0.45rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .status-table tr:last-child td { border-bottom: none; }
+    .pill {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 20px;
+    }
+    .pill-working    { background: #D4F5D9; color: #1A5C26; }
+    .pill-planned    { background: #EEEEEE; color: #555; }
+    .pill-draft      { background: #FFF0CC; color: #7A4800; }
+    @media (prefers-color-scheme: dark) {
+      .pill-working    { background: #1A3D1F; color: #7EDB8A; }
+      .pill-planned    { background: #2A2A2A; color: #AAAAAA; }
+      .pill-draft      { background: #3D2E00; color: #FFD080; }
+    }
+
+    /* ===== Footer ===== */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      font-size: 0.825rem;
+      color: var(--text-muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 640px) {
+      .hero { padding: 4rem 1rem 3rem; }
+      .nav-links { display: none; }
+      .workflow { gap: 0.5rem; }
+      .workflow-arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<nav aria-label="Site navigation">
+  <a class="nav-brand" href="#" aria-label="cost-running home">cost<span>-running</span></a>
+  <ul class="nav-links">
+    <li><a href="#why">Why</a></li>
+    <li><a href="#taxonomy">Honesty</a></li>
+    <li><a href="#workflow">Workflow</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="https://github.com/warith-harchaoui/cost-running">GitHub</a></li>
+  </ul>
+</nav>
+
+<main id="main">
+
+  <!-- Hero -->
+  <div class="hero">
+    <p class="hero-eyebrow">Open source · BSD 3-Clause</p>
+    <h1>Measure the cost of running <code>code</code></h1>
+    <p class="hero-sub">
+      Money, time, energy, carbon, water — every number carries an honesty label
+      (<em>measured</em>, <em>estimated</em>, <em>placeholder</em>, <em>TODO</em>).
+      No hidden assumptions.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#install">Get started</a>
+      <a class="btn btn-secondary" href="https://github.com/warith-harchaoui/cost-running">View on GitHub</a>
+    </div>
+  </div>
+
+  <!-- Why -->
+  <section id="why">
+    <div class="container">
+      <h2>Why cost-running?</h2>
+      <p class="section-sub">
+        Cost models that hide their uncertainty are worse than useless — they give
+        false confidence. cost-running makes uncertainty first-class.
+      </p>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">🏷️</div>
+          <h3>Honesty by construction</h3>
+          <p>Every quantity carries a status. A derived value can never claim to be
+             better-founded than its weakest input — the <em>weakest-link rule</em>
+             is enforced at validation time.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">📐</div>
+          <h3>Wide-sense dimensions</h3>
+          <p>Money, time, energy, carbon, water — and any extra dimension your team
+             needs. The dimension registry is first-class, not a hard-coded list.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">🔬</div>
+          <h3>Real measurement</h3>
+          <p>RAPL counters on Linux give you system-package energy during the run.
+             The tool clearly distinguishes this observed-system figure from a
+             TDP-based estimate — attribution is always stated.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">📊</div>
+          <h3>Reports that look superb</h3>
+          <p>Self-contained HTML with inline SVG figures: honesty inventory,
+             status distribution, scenario comparison. Passes the Ralph Eyeball gate
+             before shipping.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">🔁</div>
+          <h3>CI drift gate</h3>
+          <p><code>cost-running diff old.yaml new.yaml</code> flags any dimension
+             that drifted more than 10% (configurable). Exit 1 in CI when the model
+             is out of date.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" aria-hidden="true">🔍</div>
+          <h3>Repo audit</h3>
+          <p><code>cost-running audit .</code> detects languages, archetype, and
+             paid services (OpenAI, Anthropic, AWS, …), then scaffolds a pre-filled
+             cost model with pricing-source URLs ready to complete.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Honesty taxonomy -->
+  <section id="taxonomy">
+    <div class="container">
+      <h2>The honesty taxonomy</h2>
+      <p class="section-sub">
+        Every value in a cost model carries one of four statuses. A derived value
+        obeys the <strong>weakest-link rule</strong>: it can never claim a stronger
+        status than the worst of its inputs.
+      </p>
+      <div class="taxonomy-grid">
+        <div class="taxonomy-card">
+          <span class="badge badge-measured" aria-label="measured status">measured</span>
+          <h3>Measured</h3>
+          <p>Recorded from an actual run on the target system. Wall-clock time is
+             always measured. RAPL-based energy is labelled <em>estimated</em>
+             because system-package attribution ≠ process attribution.</p>
+        </div>
+        <div class="taxonomy-card">
+          <span class="badge badge-estimated" aria-label="estimated status">estimated</span>
+          <h3>Estimated</h3>
+          <p>Computed from sourced assumptions or a published formula. Source URL
+             and retrieval date required. Freshness is checked: values older than
+             90 days earn a provenance warning.</p>
+        </div>
+        <div class="taxonomy-card">
+          <span class="badge badge-placeholder" aria-label="placeholder status">placeholder</span>
+          <h3>Placeholder</h3>
+          <p>A structural stand-in kept visible so the model compiles. Not a real
+             number — the reader should not make decisions from it.</p>
+        </div>
+        <div class="taxonomy-card">
+          <span class="badge badge-todo" aria-label="TODO status">TODO</span>
+          <h3>TODO</h3>
+          <p>A human must supply this value before the model can be trusted.
+             Validation passes but clearly surfaces every TODO so nothing is
+             accidentally left blank.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Workflow -->
+  <section id="workflow">
+    <div class="container">
+      <h2>The near-term workflow</h2>
+      <p class="section-sub">
+        The most valuable path through the tool, in order.
+      </p>
+      <div class="workflow" role="img" aria-label="Workflow: audit, measure, fill assumptions, validate, render, diff in CI">
+        <div class="workflow-step">audit</div>
+        <div class="workflow-arrow" aria-hidden="true">→</div>
+        <div class="workflow-step">measure</div>
+        <div class="workflow-arrow" aria-hidden="true">→</div>
+        <div class="workflow-step">fill assumptions</div>
+        <div class="workflow-arrow" aria-hidden="true">→</div>
+        <div class="workflow-step">validate</div>
+        <div class="workflow-arrow" aria-hidden="true">→</div>
+        <div class="workflow-step">render</div>
+        <div class="workflow-arrow" aria-hidden="true">→</div>
+        <div class="workflow-step">diff in CI</div>
+      </div>
+      <div class="code-panel" aria-label="CLI example">
+        <pre><span class="c"># 1. Detect languages, archetype, paid services → scaffold model</span>
+cost-running audit .  --output cost_of_running.yaml
+
+<span class="c"># 2. Measure a representative run</span>
+cost-running measure <span class="kw">--</span> python train.py <span class="kw">--</span>grid-gco2e-per-kwh 55
+
+<span class="c"># 3. Fill assumptions, review TODOs in cost_of_running.yaml, then validate</span>
+cost-running validate cost_of_running.yaml
+
+<span class="c"># 4. Render a self-contained HTML report (or plain Markdown)</span>
+cost-running render cost_of_running.yaml <span class="kw">--</span>format html <span class="kw">--</span>output report.html
+
+<span class="c"># 5. Gate on drift in CI (exit 1 if any dimension changed &gt; 10%)</span>
+cost-running diff cost_of_running.yaml.old cost_of_running.yaml</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Install -->
+  <section id="install">
+    <div class="container">
+      <h2>Install</h2>
+      <p class="section-sub">Runtime install — no system dependency required.</p>
+      <div class="code-panel" aria-label="Install commands">
+        <pre><span class="c"># pip</span>
+pip install -r requirements.txt
+
+<span class="c"># conda</span>
+conda env create -f environment.yaml
+conda activate env-for-cost-running
+pip install -r requirements-dev.txt
+
+<span class="c"># Quick start</span>
+cost-running init --template full --output cost_of_running.yaml
+cost-running validate cost_of_running.yaml
+cost-running render cost_of_running.yaml --format html --output report.html</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- Status -->
+  <section id="status">
+    <div class="container">
+      <h2>Status</h2>
+      <p class="section-sub">cost-running v0.1 — early but working.</p>
+      <table class="status-table" aria-label="Feature status table">
+        <thead>
+          <tr><th>Surface / feature</th><th>State</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Python library (core + application)</td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>CLI: <code>init</code>, <code>validate</code>, <code>render</code> (md + html), <code>measure</code>, <code>diff</code>, <code>audit</code>, <code>hardware</code>, <code>service</code></td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>HTML report with inline SVG figures (Ralph Eyeball gate)</td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>Honesty validation (status, weakest-link, non-negative, provenance)</td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>Local hardware detection + grounded GPU extrapolation</td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>Community catalog (hardware + services)</td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>DOCX + PDF reports (md2star)</td><td><span class="pill pill-planned">Planned</span></td></tr>
+          <tr><td>Currency-bearing quantities + auto FX rates (schema 1.1)</td><td><span class="pill pill-planned">Planned</span></td></tr>
+          <tr><td>Custom dimensions end-to-end (schema 1.1)</td><td><span class="pill pill-planned">Planned</span></td></tr>
+          <tr><td>HTTP API (FastAPI)</td><td><span class="pill pill-planned">Planned</span></td></tr>
+          <tr><td>MCP server</td><td><span class="pill pill-planned">Planned</span></td></tr>
+          <tr><td>GUI</td><td><span class="pill pill-planned">Planned</span></td></tr>
+          <tr><td>Agent Skill</td><td><span class="pill pill-draft">Draft</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    <strong>cost-running</strong> is released under the
+    <a href="https://github.com/warith-harchaoui/cost-running/blob/master/LICENSE">BSD 3-Clause License</a>.
+    Built by <a href="https://harchaoui.org/warith">Warith Harchaoui</a>.
+  </p>
+</footer>
+
+</body>
+</html>

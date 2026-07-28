@@ -31,18 +31,36 @@ domain depends on anything above it.
 
 The `nexteco` prototype hard-wired five dimensions (money, time, energy, carbon,
 water) into its schema and renderer. cost-running promotes a dimension to a
-first-class, registered object (`domain/dimensions.py`), so the same validation
-and rendering machinery covers the canonical five and any extra a team needs,
-for example network egress or a memory-hour budget, without a schema change.
+first-class, registered object (`domain/dimensions.py`). The vocabulary is in
+place; the serialisation, validation, and rendering machinery for *arbitrary*
+custom dimensions is not yet complete end-to-end. v0.1 validates and renders the
+canonical five. Custom dimension support — registration, validation, and
+rendering without code changes — is a planned increment for schema 1.1.
+
+### Currency and monetary fields
+
+Monetary fields in v0.1 are USD-specific by name (`electricity_cost_usd`,
+`total_cost_usd`, etc.). This is acceptable for an early prototype but will not
+scale to multi-currency cost models. The planned fix for schema 1.1 is a
+currency-bearing quantity `{value, currency, status}` where:
+
+- The currency field is an ISO 4217 code (e.g. `USD`, `EUR`, `JPY`).
+- Exchange rates for cross-currency reports are fetched automatically by an
+  infrastructure module (`infrastructure/fx.py`, planned) with a static
+  bundled fallback — never entered manually by a human.
+- The field names lose the `_usd` suffix (e.g. `electricity_cost`).
+
+Until schema 1.1 lands, the tool assumes USD throughout.
 
 ## Surfaces: what ships when
 
 | Surface | State | Notes |
 |---|---|---|
 | Library | Working | The core plus the application use cases. |
-| CLI | Working | `init`, `validate`, `render`. `diff`, `audit`, `measure` next. |
+| CLI | Working | `init`, `validate`, `render` (md + html), `diff`, `measure`, `audit`, `hardware`, `service`. |
 | Reports (Markdown) | Working | `render` emits a Markdown report. |
-| Reports (web, with figures) | Next | Self-contained HTML with embedded SVG figures. |
+| Reports (HTML, with SVG figures) | Working | `render --format html` emits a self-contained page. |
+| Reports (DOCX + PDF) | Planned | `~/md2star` + `assets/report/template.docx`. |
 | HTTP API (FastAPI) | Planned | Thin routes over the application layer. |
 | MCP server | Planned | A curated allowlist of the operations. |
 | GUI | Planned | Browser front end, built with the `sprezzature` skills. |
@@ -56,8 +74,8 @@ scenario against another, a projection at scale, and above all the honesty
 status of each number. So the report surface has two forms:
 
 1. **Markdown** (working): a plain report, every number carrying its status.
-2. **Web report** (next): a single self-contained HTML page with embedded SVG
-   figures.
+2. **Web report** (working): a single self-contained HTML page with inline SVG
+   figures — no CDN, no external assets, opens offline.
 
 The web report is built with the author's `sprezzature` front-* skills rather
 than a new charting stack, so it inherits their conventions:

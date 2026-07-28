@@ -20,7 +20,7 @@ version = "0.1.0"
 description = "Wide-sense cost-of-running-code tooling: money, time, energy, carbon, water per canonical unit, with an honesty taxonomy and a locked schema."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Unlicense" }
+license = { text = "BSD-3-Clause" }
 authors = [{ name = "Warith Harchaoui" }]
 keywords = [
     "cost of running",
@@ -35,7 +35,7 @@ keywords = [
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: Public Domain",
+    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
