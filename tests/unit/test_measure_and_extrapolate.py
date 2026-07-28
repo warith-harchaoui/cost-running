@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import sys
 
-from cost_running.application.extrapolate import extrapolate_gpu
+from cost_running.application.extrapolate import (
+    extrapolate_gpu,
+    extrapolate_to_completion,
+)
 from cost_running.application.measure import measure_command
 
 
@@ -67,4 +70,49 @@ def test_extrapolate_refuses_unknown_target():
     assert not r.applicable
     assert r.confidence == "not-applicable"
     assert r.runtime_seconds is None
+    assert r.reasons
+
+
+def test_completion_scales_slice_to_whole():
+    # A slice covering 1% of the work projects to 100x its cost.
+    r = extrapolate_to_completion(
+        fraction_completed=0.01,
+        slice_runtime_seconds=30.0,
+        slice_energy_kwh=0.02,
+        slice_carbon_gco2e=1.5,
+        slice_cost_usd=0.004,
+    )
+    assert r.applicable
+    assert r.scale == 100.0
+    assert round(r.runtime_seconds) == 3000
+    assert round(r.energy_kwh, 3) == 2.0
+    assert round(r.carbon_gco2e, 1) == 150.0
+    assert round(r.cost_usd, 3) == 0.4
+    # It is an estimate that states its model, assumptions, and limits.
+    assert r.status == "estimated"
+    assert r.method and r.assumptions and r.limits
+
+
+def test_completion_leaves_missing_dimensions_none():
+    # Only runtime was measured; energy/carbon/cost stay None rather than invented.
+    r = extrapolate_to_completion(fraction_completed=0.5, slice_runtime_seconds=10.0)
+    assert r.applicable
+    assert r.runtime_seconds == 20.0
+    assert r.energy_kwh is None
+    assert r.carbon_gco2e is None
+    assert r.cost_usd is None
+
+
+def test_completion_refuses_bad_fraction():
+    # A fraction outside (0, 1] cannot be inverted into an honest multiplier.
+    for bad in (0.0, -0.1, 1.5):
+        r = extrapolate_to_completion(fraction_completed=bad, slice_runtime_seconds=10.0)
+        assert not r.applicable
+        assert r.runtime_seconds is None
+        assert r.reasons
+
+
+def test_completion_refuses_nonpositive_slice_runtime():
+    r = extrapolate_to_completion(fraction_completed=0.5, slice_runtime_seconds=0.0)
+    assert not r.applicable
     assert r.reasons

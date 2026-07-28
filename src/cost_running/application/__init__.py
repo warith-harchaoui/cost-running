@@ -19,6 +19,12 @@ from __future__ import annotations
 
 from .audit import audit_github_repo, audit_repo
 from .diff import DiffResult, DriftItem, diff_models
+from .extrapolate import (
+    CompletionResult,
+    ExtrapolationResult,
+    extrapolate_gpu,
+    extrapolate_to_completion,
+)
 from .io import dump_model_yaml, load_model, write_text
 from .render import render_markdown
 from .render_html import render_html
@@ -39,4 +45,8 @@ __all__ = [
     "DriftItem",
     "audit_repo",
     "audit_github_repo",
+    "extrapolate_gpu",
+    "extrapolate_to_completion",
+    "ExtrapolationResult",
+    "CompletionResult",
 ]
