@@ -17,6 +17,7 @@ Project maintainers.
 
 from __future__ import annotations
 
+from .audit import audit_github_repo, audit_repo
 from .diff import DiffResult, DriftItem, diff_models
 from .io import dump_model_yaml, load_model, write_text
 from .render import render_markdown
@@ -36,4 +37,6 @@ __all__ = [
     "diff_models",
     "DiffResult",
     "DriftItem",
+    "audit_repo",
+    "audit_github_repo",
 ]

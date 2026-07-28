@@ -33,6 +33,7 @@ from ..infrastructure.detect import (
     detect_languages,
     detect_services,
 )
+from ..infrastructure.github import cloned_repo
 
 # Per-archetype seeds: active power (W), runtime (s), and an instance label. These
 # are starting points, honest as estimates and nothing more; a human replaces
@@ -238,3 +239,29 @@ def audit_repo(path: str | Path) -> AuditResult:
         model=model,
         service_hits=service_hits,
     )
+
+
+def audit_github_repo(ref: str) -> AuditResult:
+    """Clone a public GitHub repository and audit it.
+
+    Parameters
+    ----------
+    ref : str
+        A GitHub HTTPS URL, ``github.com/owner/repo``, or bare ``owner/repo``
+        slug.  The repository must be publicly accessible.
+
+    Returns
+    -------
+    AuditResult
+        Identical to :func:`audit_repo` but sourced from the remote repository.
+        The clone is deleted automatically after analysis.
+
+    Raises
+    ------
+    ValueError
+        If ``ref`` cannot be parsed as a GitHub reference.
+    RuntimeError
+        If ``git clone`` fails (network error, private repo, typo, etc.).
+    """
+    with cloned_repo(ref) as path:
+        return audit_repo(path)

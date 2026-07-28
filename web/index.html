@@ -297,6 +297,46 @@
       padding: 0 0.5rem;
     }
 
+    /* ===== Gallery ===== */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .gallery-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .gallery-card h3 {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+    .gallery-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 0.75rem;
+    }
+    .tag {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.55rem;
+      border-radius: 20px;
+      background: var(--accent-light);
+      color: var(--accent);
+    }
+    .tag-service {
+      background: var(--border);
+      color: var(--text-muted);
+    }
+    .gallery-card p { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.55; }
+
     /* ===== Status table ===== */
     .status-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     .status-table th {
@@ -355,6 +395,7 @@
     <li><a href="#why">Why</a></li>
     <li><a href="#taxonomy">Honesty</a></li>
     <li><a href="#workflow">Workflow</a></li>
+    <li><a href="#gallery">Gallery</a></li>
     <li><a href="#install">Install</a></li>
     <li><a href="https://github.com/warith-harchaoui/cost-running">⭐️ on GitHub</a></li>
   </ul>
@@ -506,6 +547,71 @@ cost-running render cost_of_running.yaml <span class="kw">--</span>format html <
 <span class="c"># 5. Gate on drift in CI (exit 1 if any dimension changed &gt; 10%)</span>
 cost-running diff cost_of_running.yaml.old cost_of_running.yaml</pre>
       </div>
+    </div>
+  </section>
+
+  <!-- Gallery -->
+  <section id="gallery">
+    <div class="container">
+      <h2>Gallery</h2>
+      <p class="section-sub">
+        Real public repositories audited with <code>cost-running audit &lt;github-url&gt;</code>.
+        Each card is a scaffold — a starting point a human refines, not a final claim.
+      </p>
+      <div class="gallery-grid">
+
+        <div class="gallery-card">
+          <h3>karpathy/nanoGPT</h3>
+          <div class="gallery-meta">
+            <span class="tag">training</span>
+            <span class="tag">Python · 15 files</span>
+            <span class="tag tag-service">OpenAI</span>
+          </div>
+          <p>Minimal GPT training in pure Python. Correctly detected as a training workload;
+             OpenAI hit comes from the tokenisation and comparison paths.</p>
+        </div>
+
+        <div class="gallery-card">
+          <h3>openai/whisper</h3>
+          <div class="gallery-meta">
+            <span class="tag">cli-tool</span>
+            <span class="tag">Python · 20 files</span>
+            <span class="tag tag-service">OpenAI</span>
+          </div>
+          <p>Speech-recognition model with a <code>__main__.py</code> entrypoint → cli-tool archetype.
+             Service hit from the model weights and API comparison paths.</p>
+        </div>
+
+        <div class="gallery-card">
+          <h3>apache/airflow</h3>
+          <div class="gallery-meta">
+            <span class="tag">api-service</span>
+            <span class="tag">Python · 7663 &nbsp;TS · 1021 &nbsp;Go · 96</span>
+            <span class="tag tag-service">AWS · Azure · GCP · OpenAI · Anthropic · +6</span>
+          </div>
+          <p>Airflow integrates with virtually every cloud and AI provider: 11 paid services
+             detected in one scan across 9 000+ files in 8 languages.</p>
+        </div>
+
+        <div class="gallery-card">
+          <h3>warith-harchaoui/cost-running</h3>
+          <div class="gallery-meta">
+            <span class="tag">inference ¹</span>
+            <span class="tag">Python · 38 files</span>
+            <span class="tag tag-service">Anthropic · OpenAI</span>
+          </div>
+          <p>Self-referential audit. <code>detect.py</code> in <code>infrastructure/</code> triggers
+             the inference heuristic — a useful reminder that filename-based detection
+             is a heuristic, not a verdict. ¹ Should be cli-tool.</p>
+        </div>
+
+      </div>
+      <p style="margin-top:1.25rem; font-size:0.8125rem; color:var(--text-muted);">
+        Full write-up in
+        <a href="https://github.com/warith-harchaoui/cost-running/blob/master/GALLERY.md">GALLERY.md</a>.
+        Run any of these yourself:
+        <code>cost-running audit karpathy/nanoGPT --output nanoGPT.yaml</code>
+      </p>
     </div>
   </section>
 

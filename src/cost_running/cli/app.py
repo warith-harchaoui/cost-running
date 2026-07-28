@@ -39,9 +39,10 @@ from ..application import (
     validate_model,
     write_text,
 )
-from ..application.audit import audit_repo
+from ..application.audit import audit_github_repo, audit_repo
 from ..application.measure import measure_command
 from ..infrastructure import registry
+from ..infrastructure.github import is_github_ref
 from ..templates import get_template_text
 
 # Diagnostics go through the logger to stderr; the documented result of a command
@@ -247,16 +248,23 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     Parameters
     ----------
     args : argparse.Namespace
-        Parsed arguments with ``path``, ``output``, and ``json``.
+        Parsed arguments with ``path``, ``output``, and ``json``.  ``path``
+        may be a local directory or a GitHub URL / ``owner/repo`` slug; the
+        latter is cloned automatically and deleted after analysis.
 
     Returns
     -------
     int
-        ``0`` on success, ``2`` when the path is not a directory.
+        ``0`` on success, ``2`` when the path is not a directory or the clone
+        fails.
     """
     try:
-        result = audit_repo(args.path)
-    except (NotADirectoryError, OSError) as exc:
+        if is_github_ref(args.path):
+            logger.info("Cloning %s …", args.path)
+            result = audit_github_repo(args.path)
+        else:
+            result = audit_repo(args.path)
+    except (NotADirectoryError, OSError, RuntimeError, ValueError) as exc:
         logger.error("Cannot audit %s: %s", args.path, exc)
         return EXIT_USAGE
 
@@ -444,7 +452,13 @@ def make_parser() -> argparse.ArgumentParser:
     audit_parser = subparsers.add_parser(
         "audit", help="Scan a repository and scaffold a cost model."
     )
-    audit_parser.add_argument("path", help="Path to the repository to scan.")
+    audit_parser.add_argument(
+        "path",
+        help=(
+            "Local repository path, GitHub URL "
+            "(https://github.com/owner/repo), or bare owner/repo slug."
+        ),
+    )
     audit_parser.add_argument(
         "--output", default="cost_of_running.yaml", help="Where to write the scaffold model."
     )
