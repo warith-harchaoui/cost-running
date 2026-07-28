@@ -42,6 +42,9 @@ Project maintainers.
 from __future__ import annotations
 
 import html
+import json
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from .validate import normalize_scenarios
@@ -128,20 +131,48 @@ _COUNTRY_GRID_GCO2E: dict[str, int] = {
     "USA": 386,
 }
 
-# Known instance types shown in the dropdown; the scaffold default is listed first.
+# Known instance types shown in the dropdown. single-RTX-4090 is first and is
+# the default when the model does not specify a known instance type.
 _INSTANCE_TYPES: list[str] = [
-    "single-CPU-node",
+    "single-RTX-4090",
+    "single-RTX-3090",
     "single-A100-node",
     "single-H100-node",
     "single-V100-node",
     "single-T4-node",
     "single-A10G-node",
-    "single-RTX-4090",
-    "single-RTX-3090",
+    "single-CPU-node",
     "aws-p4d.24xlarge (8× A100)",
     "aws-p3.2xlarge (1× V100)",
     "gcp-a2-highgpu-1g (1× A100)",
     "azure-NC24ads-A100-v4 (1× A100)",
+]
+
+# Approximate sustained TDP per instance type (Watts). Used for live estimation.
+_INSTANCE_POWER_W: dict[str, int] = {
+    "single-RTX-4090": 450,
+    "single-RTX-3090": 350,
+    "single-A100-node": 400,
+    "single-H100-node": 700,
+    "single-V100-node": 300,
+    "single-T4-node": 70,
+    "single-A10G-node": 250,
+    "single-CPU-node": 150,
+    "aws-p4d.24xlarge (8× A100)": 3200,
+    "aws-p3.2xlarge (1× V100)": 300,
+    "gcp-a2-highgpu-1g (1× A100)": 400,
+    "azure-NC24ads-A100-v4 (1× A100)": 400,
+}
+
+# Cloud providers and on-prem. PUE = Power Usage Effectiveness (1.0 ideal).
+# price = approximate USD/kWh charged to customers; None = varies.
+_PROVIDERS: list[dict] = [
+    {"key": "on-prem", "label": "On-prem", "pue": 1.5, "price": None},
+    {"key": "aws", "label": "AWS", "pue": 1.2, "price": 0.10},
+    {"key": "gcp", "label": "Google Cloud (GCP)", "pue": 1.11, "price": 0.10},
+    {"key": "azure", "label": "Microsoft Azure", "pue": 1.15, "price": 0.10},
+    {"key": "lambda", "label": "Lambda Labs", "pue": 1.2, "price": 0.075},
+    {"key": "paper", "label": "Paperspace / DigitalOcean", "pue": 1.2, "price": 0.07},
 ]
 
 # ---------------------------------------------------------------------------
@@ -829,9 +860,32 @@ html[data-theme="dark"] .badge-estimated  { background: #5A3400; color: #FFD080;
 html[data-theme="dark"] .badge-placeholder{ background: #333333; color: #BBBBBB; }
 html[data-theme="dark"] .badge-todo       { background: #5C0000; color: #FF9999; }
 
+/* ===== Live deployment estimate ===== */
+.live-estimate {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  min-height: 2rem;
+}
+.live-table { width: auto; border-collapse: collapse; }
+.live-table td { padding: 0.2rem 1rem 0.2rem 0; border: none; font-size: 0.875rem; }
+.live-table td:first-child { color: var(--color-text-muted); white-space: nowrap; }
+.live-table code { font-family: var(--font-mono); font-style: normal; }
+.live-note { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 0.4rem; font-style: italic; }
+
+/* ===== Stale-data banner ===== */
+.stale-banner {
+  background: #FFF3CD; color: #664D00; border-bottom: 1px solid #FFE083;
+  padding: 0.5rem 1.5rem; font-size: 0.82rem; text-align: center;
+}
+html[data-theme="dark"] .stale-banner { background: #5A3400; color: #FFD080; border-color: #9A5800; }
+
 /* ===== Print / PDF ===== */
 @media print {
   .report-toolbar { display: none; }
+  .stale-banner { display: none; }
   body { background: #fff; color: #000; padding: 0; }
   .page { max-width: 100%; }
   .card, figure { box-shadow: none; border: 1px solid #ccc; break-inside: avoid; }
@@ -936,29 +990,167 @@ def _country_select(current: str) -> str:
 
 
 def _instance_select(current: str) -> str:
-    """Return a <select> for the instance_type field."""
+    """Return a <select> for the instance_type field. Defaults to single-RTX-4090."""
+    if current not in _INSTANCE_POWER_W:
+        current = "single-RTX-4090"
     options = []
-    found = False
     for name in _INSTANCE_TYPES:
         selected = " selected" if name == current else ""
-        if name == current:
-            found = True
         options.append(f'<option value="{_esc(name)}"{selected}>{_esc(name)}</option>')
-    if not found:
-        options.insert(0, f'<option value="{_esc(current)}" selected>{_esc(current)}</option>')
-    return '<select id="cr-instance" class="deploy-select">' + "".join(options) + "</select>"
+    return (
+        '<select id="cr-instance" class="deploy-select" onchange="crRecompute()">'
+        + "".join(options)
+        + "</select>"
+    )
+
+
+def _provider_select(current: str) -> str:
+    """Return a <select> for the cloud/on-prem provider."""
+    # Normalise legacy values (e.g. "local" → "on-prem")
+    known_keys = {p["key"] for p in _PROVIDERS}
+    if current not in known_keys:
+        current = "on-prem"
+    options = []
+    for p in _PROVIDERS:
+        selected = " selected" if p["key"] == current else ""
+        price_str = f"${p['price']:.3f}/kWh" if p["price"] is not None else "price varies"
+        options.append(
+            f'<option value="{_esc(p["key"])}"{selected}>'
+            f"{_esc(p['label'])} — PUE {p['pue']} · {price_str}"
+            f"</option>"
+        )
+    return (
+        '<select id="cr-provider" class="deploy-select" onchange="crRecompute()">'
+        + "".join(options)
+        + "</select>"
+    )
 
 
 def _deployment_js() -> str:
-    """Return the inline JS that powers the country carbon-intensity hint."""
-    data_js = "{" + ",".join(f'"{k}":{v}' for k, v in _COUNTRY_GRID_GCO2E.items()) + "}"
+    """Return inline JS for the deployment section: dropdowns + live recomputation."""
+    grid_js = "{" + ",".join(f'"{k}":{v}' for k, v in _COUNTRY_GRID_GCO2E.items()) + "}"
+
+    provider_js = (
+        "{"
+        + ",".join(
+            f'"{p["key"]}":{{"pue":{p["pue"]},'
+            f'"price":{p["price"] if p["price"] is not None else "null"}}}'
+            for p in _PROVIDERS
+        )
+        + "}"
+    )
+
+    power_js = "{" + ",".join(f'"{k}":{v}' for k, v in _INSTANCE_POWER_W.items()) + "}"
+
+    tz_pairs = [
+        ("Europe/Paris", "France"),
+        ("Europe/Berlin", "Germany"),
+        ("Europe/London", "UK"),
+        ("America/New_York", "USA"),
+        ("America/Chicago", "USA"),
+        ("America/Los_Angeles", "USA"),
+        ("America/Denver", "USA"),
+        ("America/Phoenix", "USA"),
+        ("America/Anchorage", "USA"),
+        ("Pacific/Honolulu", "USA"),
+        ("America/Toronto", "Canada"),
+        ("America/Vancouver", "Canada"),
+        ("Europe/Madrid", "Spain"),
+        ("Europe/Rome", "Italy"),
+        ("Europe/Amsterdam", "Netherlands"),
+        ("Europe/Brussels", "Belgium"),
+        ("Europe/Warsaw", "Poland"),
+        ("Europe/Stockholm", "Sweden"),
+        ("Europe/Oslo", "Norway"),
+        ("Europe/Copenhagen", "Denmark"),
+        ("Europe/Helsinki", "Finland"),
+        ("Europe/Zurich", "Switzerland"),
+        ("Europe/Vienna", "Austria"),
+        ("Europe/Lisbon", "Portugal"),
+        ("Europe/Dublin", "Ireland"),
+        ("Europe/Prague", "Czechia"),
+        ("Europe/Budapest", "Hungary"),
+        ("Europe/Bucharest", "Romania"),
+        ("Europe/Bratislava", "Slovakia"),
+        ("Europe/Kiev", "Ukraine"),
+        ("Europe/Kyiv", "Ukraine"),
+        ("Europe/Moscow", "Russia"),
+        ("Europe/Istanbul", "Turkey"),
+        ("Asia/Tokyo", "Japan"),
+        ("Asia/Seoul", "South Korea"),
+        ("Asia/Shanghai", "China"),
+        ("Asia/Hong_Kong", "China"),
+        ("Asia/Taipei", "China"),
+        ("Asia/Kolkata", "India"),
+        ("Asia/Singapore", "Singapore"),
+        ("Asia/Jerusalem", "Israel"),
+        ("Asia/Riyadh", "Saudi Arabia"),
+        ("Asia/Dubai", "UAE"),
+        ("America/Sao_Paulo", "Brazil"),
+        ("America/Mexico_City", "Mexico"),
+        ("America/Santiago", "Chile"),
+        ("America/Argentina/Buenos_Aires", "Argentina"),
+        ("Africa/Johannesburg", "South Africa"),
+        ("Africa/Lagos", "Nigeria"),
+        ("Africa/Cairo", "Egypt"),
+        ("Australia/Sydney", "Australia"),
+        ("Australia/Melbourne", "Australia"),
+    ]
+    tz_js = "{" + ",".join(f'"{tz}":"{c}"' for tz, c in tz_pairs) + "}"
+
     return f"""<script>
-var _CR_GRID={data_js};
+var _CR_GRID={grid_js};
+var _CR_PROVIDERS={provider_js};
+var _CR_POWER_W={power_js};
+var _CR_TZ={tz_js};
+
+function crRecompute(){{
+  var sc=document.getElementById('cr-country');
+  var si=document.getElementById('cr-instance');
+  var sp=document.getElementById('cr-provider');
+  var el=document.getElementById('cr-live-estimate');
+  if(!sc||!si||!sp||!el) return;
+  var rt=window._CR_RUNTIME_S||0;
+  if(rt<=0){{el.innerHTML='<p class="live-note">Runtime unknown — fill runtime_seconds in the YAML model.</p>';return;}}
+  var gco2e=_CR_GRID[sc.value]||0;
+  var pw=_CR_POWER_W[si.value]||100;
+  var pd=_CR_PROVIDERS[sp.value]||{{pue:1.5,price:null}};
+  var ekwh=pw*pd.pue*rt/3600/1000;
+  var cg=gco2e>0?ekwh*gco2e:null;
+  var cu=pd.price!==null?ekwh*pd.price:null;
+  var rows='';
+  rows+='<tr><td>⚡ Energy</td><td><code>'+ekwh.toExponential(3)+' kWh</code></td></tr>';
+  if(cg!==null) rows+='<tr><td>💨 Carbon</td><td><code>'+cg.toFixed(2)+' gCO₂e</code></td></tr>';
+  if(cu!==null) rows+='<tr><td>💰 Electricity cost</td><td><code>$'+cu.toExponential(3)+'</code></td></tr>';
+  el.innerHTML='<table class="live-table">'+rows+'</table>'
+    +'<p class="live-note">power='+pw+'W · PUE='+pd.pue+' · runtime='+rt.toExponential(2)+'s — estimated</p>';
+}}
+
 function crCountryChange(sel){{
   var v=_CR_GRID[sel.value];
   var hint=document.getElementById('cr-country-hint');
-  hint.textContent=v?'\\u2248 '+v+' gCO₂e/kWh':'set a country to see grid intensity';
+  if(hint) hint.textContent=v?'≈ '+v+' gCO₂e/kWh':'set a country to see grid intensity';
+  try{{localStorage.setItem('cr-country',sel.value);}}catch(e){{}}
+  crRecompute();
 }}
+
+function detectAndSetCountry(){{
+  var sel=document.getElementById('cr-country');
+  if(!sel) return;
+  var saved; try{{saved=localStorage.getItem('cr-country');}}catch(e){{}}
+  if(saved&&_CR_GRID[saved]!==undefined){{sel.value=saved;crCountryChange(sel);return;}}
+  try{{
+    var tz=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    var c=_CR_TZ[tz];
+    if(c){{sel.value=c;crCountryChange(sel);}}
+  }}catch(e){{}}
+  crRecompute();
+}}
+
+document.addEventListener('DOMContentLoaded',function(){{
+  detectAndSetCountry();
+  crRecompute();
+}});
 </script>"""
 
 
@@ -977,9 +1169,13 @@ def _render_deployment_section(data: dict[str, Any]) -> str:
             parts.append(f"<dt>{_esc(key)}</dt><dd>{_country_select(str(value))}</dd>")
         elif key == "instance_type":
             parts.append(f"<dt>{_esc(key)}</dt><dd>{_instance_select(str(value))}</dd>")
+        elif key == "provider":
+            parts.append(f"<dt>{_esc(key)}</dt><dd>{_provider_select(str(value))}</dd>")
         else:
             parts.append(f"<dt>{_esc(key)}</dt><dd>{_esc(value)}</dd>")
-    parts.append("</dl></div>")
+    parts.append("</dl>")
+    parts.append('<div id="cr-live-estimate" class="live-estimate"></div>')
+    parts.append("</div>")
     parts.append(_deployment_js())
     parts.append("</section>")
     return "\n".join(parts)
@@ -1093,66 +1289,170 @@ def _render_exclusions_section(data: dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-_THEME_JS = """<script>
-(function(){
-  /* ---- theme ---- */
-  var TICONS={light:'🌞',dark:'🌛'};
-  function applyTheme(t){
-    document.documentElement.setAttribute('data-theme',t);
-    var btn=document.getElementById('cr-theme-btn');
-    if(btn) btn.textContent=t==='dark'?TICONS.light:TICONS.dark;
-    try{localStorage.setItem('cr-theme',t);}catch(e){}
-  }
-  function toggleTheme(){
-    var cur=document.documentElement.getAttribute('data-theme')||
-      (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-    applyTheme(cur==='dark'?'light':'dark');
-  }
-  window.crToggleTheme=toggleTheme;
-  var savedTheme;
-  try{savedTheme=localStorage.getItem('cr-theme');}catch(e){}
-  if(savedTheme) applyTheme(savedTheme);
-
-  /* ---- i18n ---- */
-  var T={
-    en:{
-      'nav.gallery':'← Gallery','nav.github':'⭐️ on GitHub','nav.pdf':'⬇ Save as PDF',
-      'h2.honesty':'Honesty summary','h2.unit':'Canonical unit of work',
-      'h2.deployment':'Deployment','h2.scenarios':'Scenarios','h2.exclusions':'Exclusions',
-      'honesty.caption':'Distribution of honesty labels across all numeric quantities in this model. <em>measured</em> = real observation; <em>estimated</em> = computed from sourced assumptions; <em>placeholder</em> = structural stand-in; <em>TODO</em> = must be filled before the model can be trusted.',
-      'footer':'Generated by <code>cost-running</code> from the YAML cost model. Edit the YAML, then re-render.',
-      'deploy.hint.none':'set a country to see grid intensity',
-      'scenario.caption.suffix':'Bar colour encodes honesty status; text labels repeat it. All cost and emission dimensions: lower is better.'
+# Embedded translation fallback. This is the authoritative content; it is kept
+# byte-for-byte in sync with ``locales/i18n.yaml`` (the human-readable reference).
+# Written as a native Python dict so apostrophes and quotes are handled by Python,
+# then serialised to JavaScript with ``json.dumps`` — never hand-escaped into a JS
+# string literal (that path silently produced broken JS and dead toggles).
+_I18N_FALLBACK: dict[str, dict[str, str]] = {
+    "en": {
+        "nav.gallery": "← Gallery",
+        "nav.github": "⭐️ on GitHub",
+        "nav.pdf": "⬇ Save as PDF",
+        "h2.honesty": "Honesty summary",
+        "h2.unit": "Canonical unit of work",
+        "h2.deployment": "Deployment",
+        "h2.scenarios": "Scenarios",
+        "h2.exclusions": "Exclusions",
+        "honesty.caption": (
+            "Distribution of honesty labels across all numeric quantities in this model. "
+            "<em>measured</em> = real observation; "
+            "<em>estimated</em> = computed from sourced assumptions; "
+            "<em>placeholder</em> = structural stand-in; "
+            "<em>TODO</em> = must be filled before the model can be trusted."
+        ),
+        "footer": (
+            "Generated by <code>cost-running</code> from the YAML cost model. "
+            "Edit the YAML, then re-render."
+        ),
+        "deploy.hint.none": "set a country to see grid intensity",
+        "scenario.caption.suffix": (
+            "Bar colour encodes honesty status; text labels repeat it. "
+            "All cost and emission dimensions: lower is better."
+        ),
     },
-    fr:{
-      'nav.gallery':'← Galerie','nav.github':'⭐️ sur GitHub','nav.pdf':'⬇ Enregistrer en PDF',
-      'h2.honesty':'Résumé d\'honnêteté','h2.unit':'Unité de travail canonique',
-      'h2.deployment':'Déploiement','h2.scenarios':'Scénarios','h2.exclusions':'Exclusions',
-      'honesty.caption':'Distribution des statuts d\'honnêteté sur toutes les quantités numériques du modèle. <em>measured</em> = observation réelle ; <em>estimated</em> = calculé à partir d\'hypothèses sourcées ; <em>placeholder</em> = espace réservé structurel ; <em>TODO</em> = doit être rempli avant que le modèle soit fiable.',
-      'footer':'Généré par <code>cost-running</code> depuis le modèle YAML. Modifiez le YAML, puis régénérez.',
-      'deploy.hint.none':'choisissez un pays pour voir l\'intensité carbone',
-      'scenario.caption.suffix':'La couleur encode le statut d\'honnêteté ; les étiquettes textuelles le répètent. Toutes les dimensions de coût et d\'émission : plus bas = mieux.'
-    }
-  };
-  var _lang='en';
-  function applyLang(l){
-    _lang=l;
-    var d=T[l]||T.en;
-    document.querySelectorAll('[data-i18n]').forEach(function(el){
-      var k=el.getAttribute('data-i18n');
-      if(d[k]!==undefined) el.innerHTML=d[k];
-    });
-    var btn=document.getElementById('cr-lang-btn');
-    if(btn) btn.textContent=l==='fr'?'🇬🇧':'🇫🇷';
-    try{localStorage.setItem('cr-lang',l);}catch(e){}
-  }
-  function toggleLang(){ applyLang(_lang==='fr'?'en':'fr'); }
-  window.crToggleLang=toggleLang;
-  var savedLang;
-  try{savedLang=localStorage.getItem('cr-lang');}catch(e){}
-  if(savedLang&&T[savedLang]) applyLang(savedLang);
-})();
-</script>"""
+    "fr": {
+        "nav.gallery": "← Galerie",
+        "nav.github": "⭐️ sur GitHub",
+        "nav.pdf": "⬇ Enregistrer en PDF",
+        "h2.honesty": "Résumé d'honnêteté",
+        "h2.unit": "Unité de travail canonique",
+        "h2.deployment": "Déploiement",
+        "h2.scenarios": "Scénarios",
+        "h2.exclusions": "Exclusions",
+        "honesty.caption": (
+            "Distribution des statuts d'honnêteté sur toutes les quantités numériques du modèle. "
+            "<em>measured</em> = observation réelle ; "
+            "<em>estimated</em> = calculé à partir d'hypothèses sourcées ; "
+            "<em>placeholder</em> = espace réservé structurel ; "
+            "<em>TODO</em> = doit être rempli avant que le modèle soit fiable."
+        ),
+        "footer": (
+            "Généré par <code>cost-running</code> depuis le modèle YAML. "
+            "Modifiez le YAML, puis régénérez."
+        ),
+        "deploy.hint.none": "choisissez un pays pour voir l'intensité carbone",
+        "scenario.caption.suffix": (
+            "La couleur encode le statut d'honnêteté ; les étiquettes textuelles le répètent. "
+            "Toutes les dimensions de coût et d'émission : plus bas = mieux."
+        ),
+    },
+}
+
+
+@lru_cache(maxsize=1)
+def _load_i18n() -> dict[str, dict[str, str]]:
+    """Return the translation table, preferring ``locales/i18n.yaml`` on disk.
+
+    The repository's ``locales/i18n.yaml`` is the authoritative, human-readable
+    reference. When that file is reachable (developing inside the repo tree), it
+    is loaded so a copy-editor can change wording without touching Python. When
+    it is absent (for example, an installed wheel that did not package it), the
+    embedded :data:`_I18N_FALLBACK` is used instead. Both paths carry the same
+    keys.
+
+    Returns
+    -------
+    dict
+        Mapping ``language -> {i18n_key: html_string}``.
+
+    Notes
+    -----
+    The result is memoised for the process; translations are static per render
+    run, so re-reading the file for every report would be wasteful.
+    """
+    # render_html.py lives at src/cost_running/application/; the repo root is
+    # three parents up, where locales/i18n.yaml sits.
+    candidate = Path(__file__).resolve().parents[3] / "locales" / "i18n.yaml"
+    if candidate.is_file():
+        try:
+            import yaml
+
+            with candidate.open(encoding="utf-8") as handle:
+                loaded = yaml.safe_load(handle)
+            if isinstance(loaded, dict) and loaded:
+                # Coerce every value to str so json.dumps never chokes on stray
+                # numbers or None left in the reference file.
+                return {
+                    str(lang): {str(k): str(v) for k, v in table.items()}
+                    for lang, table in loaded.items()
+                    if isinstance(table, dict)
+                }
+        except (OSError, ValueError, ImportError):
+            # Fall through to the embedded copy on any read or parse failure.
+            pass
+    return _I18N_FALLBACK
+
+
+def _theme_js() -> str:
+    """Return the inline ``<script>`` powering the theme and language toggles.
+
+    The translation table is serialised with :func:`json.dumps`, which produces
+    valid JavaScript for any string content (apostrophes, quotes, HTML tags),
+    so the toggle handlers are always defined. Hand-escaping the dict into a JS
+    string literal previously broke the whole block on the first French
+    apostrophe and left the toggles inert.
+
+    Returns
+    -------
+    str
+        A complete ``<script>`` element, ready to inline in the page ``<head>``.
+    """
+    table_js = json.dumps(_load_i18n(), ensure_ascii=False)
+    return (
+        "<script>\n"
+        "(function(){\n"
+        "  /* ---- theme ---- */\n"
+        "  var TICONS={light:'🌞',dark:'🌛'};\n"
+        "  function applyTheme(t){\n"
+        "    document.documentElement.setAttribute('data-theme',t);\n"
+        "    var btn=document.getElementById('cr-theme-btn');\n"
+        "    if(btn) btn.textContent=t==='dark'?TICONS.light:TICONS.dark;\n"
+        "    try{localStorage.setItem('cr-theme',t);}catch(e){}\n"
+        "  }\n"
+        "  function toggleTheme(){\n"
+        "    var cur=document.documentElement.getAttribute('data-theme')||\n"
+        "      (window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');\n"
+        "    applyTheme(cur==='dark'?'light':'dark');\n"
+        "  }\n"
+        "  window.crToggleTheme=toggleTheme;\n"
+        "  var savedTheme;\n"
+        "  try{savedTheme=localStorage.getItem('cr-theme');}catch(e){}\n"
+        "  if(savedTheme) applyTheme(savedTheme);\n"
+        "\n"
+        "  /* ---- i18n ---- */\n"
+        f"  var T={table_js};\n"
+        "  var _lang='en';\n"
+        "  function applyLang(l){\n"
+        "    _lang=l;\n"
+        "    var d=T[l]||T.en;\n"
+        "    document.querySelectorAll('[data-i18n]').forEach(function(el){\n"
+        "      var k=el.getAttribute('data-i18n');\n"
+        "      if(d[k]!==undefined) el.innerHTML=d[k];\n"
+        "    });\n"
+        "    var btn=document.getElementById('cr-lang-btn');\n"
+        "    if(btn) btn.textContent=l==='fr'?'🇬🇧':'🇫🇷';\n"
+        "    document.documentElement.setAttribute('lang',l);\n"
+        "    try{localStorage.setItem('cr-lang',l);}catch(e){}\n"
+        "  }\n"
+        "  function toggleLang(){ applyLang(_lang==='fr'?'en':'fr'); }\n"
+        "  window.crToggleLang=toggleLang;\n"
+        "  var savedLang;\n"
+        "  try{savedLang=localStorage.getItem('cr-lang');}catch(e){}\n"
+        "  if(savedLang&&T[savedLang]) applyLang(savedLang);\n"
+        "})();\n"
+        "</script>"
+    )
 
 
 def _render_nav(back_url: str | None = None) -> str:
@@ -1213,6 +1513,16 @@ def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
     >>> "Cost of running" in report
     True
     """
+    # Extract runtime from the first scenario to power the live JS estimator.
+    runtime_s = 0.0
+    scenarios = normalize_scenarios(data)
+    if scenarios:
+        rt = scenarios[0].get("runtime_seconds", {})
+        if isinstance(rt, dict) and isinstance(rt.get("value"), (int, float)):
+            runtime_s = float(rt["value"])
+        elif isinstance(rt, (int, float)):
+            runtime_s = float(rt)
+
     body_parts = [
         _render_toolbar(back_url),
         _render_header(data),
@@ -1229,6 +1539,24 @@ def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
 
     nav = _render_nav(back_url)
 
+    # Inline scripts: runtime for live estimator + stale-data banner.
+    inline_scripts = f"""<script>window._CR_RUNTIME_S={runtime_s};</script>
+<script>
+document.addEventListener('DOMContentLoaded',function(){{
+  var d='{date_updated}';
+  if(!d) return;
+  var age=(new Date()-new Date(d))/86400000;
+  if(age>30){{
+    var b=document.createElement('div');
+    b.className='stale-banner';
+    b.textContent='⚠ Report is '+Math.round(age)+' days old — prices, grid intensities and instance data may be outdated.';
+    var nav=document.querySelector('.site-nav');
+    if(nav) nav.insertAdjacentElement('afterend',b);
+    else document.body.insertAdjacentElement('afterbegin',b);
+  }}
+}});
+</script>"""
+
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1239,7 +1567,7 @@ def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
   <style>
 {_CSS}
   </style>
-{_THEME_JS}
+{_theme_js()}
 </head>
 <body>
 {nav}
@@ -1249,6 +1577,7 @@ def render_html(data: dict[str, Any], back_url: str | None = None) -> str:
   <p data-i18n="footer">Generated by <code>cost-running</code> from the YAML cost model. Edit the YAML, then re-render.</p>
 </footer>
 </div>
+{inline_scripts}
 </body>
 </html>
 """
