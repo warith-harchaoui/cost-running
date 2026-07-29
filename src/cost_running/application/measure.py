@@ -139,9 +139,14 @@ def _capture_child_rusage() -> tuple[float, float, int] | None:
     except ImportError:
         return None
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
-    import sys
-
-    peak_kb = usage.ru_maxrss // 1024 if sys.platform == "darwin" else usage.ru_maxrss
+    # ru_maxrss is in bytes on macOS, kilobytes on Linux. Normalise to KB.
+    try:
+        import os_helper as _osh
+        _macos = _osh.macos()
+    except ImportError:
+        import platform as _plat
+        _macos = _plat.system() == "Darwin"
+    peak_kb = usage.ru_maxrss // 1024 if _macos else usage.ru_maxrss
     return usage.ru_utime, usage.ru_stime, int(peak_kb)
 
 

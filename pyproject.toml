@@ -58,6 +58,15 @@ dependencies = [
 # CLI, or Skill should not have to install a web stack.
 api = ["fastapi>=0.110", "uvicorn>=0.29"]
 mcp = ["fastapi>=0.110", "uvicorn>=0.29", "fastapi-mcp>=0.1"]
+# analysis adds os-helper for richer platform detection (osh.macos/linux/windows),
+# the suite-wide LLM model name (osh.llm_model), and timer context managers.
+# os-helper is not on PyPI; install via:
+#   pip install "os-helper @ git+https://github.com/warith-harchaoui/os-helper"
+# or with the editable local clone (pip install -e ~/os-helper).
+# Every osh import in cost-running is guarded, so the core runs without this extra.
+analysis = [
+    "os-helper @ git+https://github.com/warith-harchaoui/os-helper",
+]
 all = ["fastapi>=0.110", "uvicorn>=0.29", "fastapi-mcp>=0.1"]
 
 [project.scripts]

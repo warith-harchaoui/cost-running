@@ -29,6 +29,23 @@ from .green_algorithms import GPU_TDP_W
 # Every OS probe is bounded so a wedged system tool cannot hang a measurement.
 _PROBE_TIMEOUT_SECONDS: float = 4.0
 
+# os-helper is an optional dependency; guard every use so the core works without it.
+try:
+    import os_helper as _osh
+
+    def _is_macos() -> bool:
+        return _osh.macos()
+
+    def _is_linux() -> bool:
+        return _osh.linux()
+
+except ImportError:
+    def _is_macos() -> bool:  # type: ignore[misc]
+        return platform.system() == "Darwin"
+
+    def _is_linux() -> bool:  # type: ignore[misc]
+        return platform.system() == "Linux"
+
 
 @dataclass(frozen=True, slots=True)
 class HardwareProfile:
@@ -161,11 +178,10 @@ def _match_gpu_key(gpu_model: str | None) -> str | None:
 
 def _detect_cpu_model() -> str | None:
     """Return the CPU model string using the OS-appropriate probe."""
-    system = platform.system()
-    if system == "Darwin":
+    if _is_macos():
         # macOS reports a clean brand string via sysctl.
         return _run(["sysctl", "-n", "machdep.cpu.brand_string"])
-    if system == "Linux":
+    if _is_linux():
         # lscpu is the tidiest source; fall back to /proc/cpuinfo.
         lscpu = _run(["lscpu"])
         if lscpu:
@@ -185,12 +201,11 @@ def _detect_cpu_model() -> str | None:
 
 def _detect_memory_gb() -> float | None:
     """Return total physical memory in gigabytes, or ``None``."""
-    system = platform.system()
-    if system == "Darwin":
+    if _is_macos():
         raw = _run(["sysctl", "-n", "hw.memsize"])  # bytes
         if raw and raw.isdigit():
             return round(int(raw) / 1024**3, 1)
-    if system == "Linux":
+    if _is_linux():
         try:
             with open("/proc/meminfo", encoding="utf-8") as handle:
                 for line in handle:
@@ -210,7 +225,7 @@ def _detect_gpu_model() -> str | None:
     if smi:
         # Take the first line; a multi-GPU node lists one per line.
         return smi.splitlines()[0].strip()
-    if platform.system() == "Darwin":
+    if _is_macos():
         # Apple silicon integrates the GPU; report it descriptively.
         chip = _run(["sysctl", "-n", "machdep.cpu.brand_string"])
         if chip and "apple" in chip.lower():
