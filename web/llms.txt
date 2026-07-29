@@ -1,0 +1,33 @@
+# cost-running
+
+> Measure the real cost of running code — money, time, energy, carbon, water — with a mandatory honesty taxonomy.
+
+## What it is
+
+cost-running is a Python library and CLI tool (BSD-3-Clause) for computing the wide-sense cost of running a piece of code.
+"Wide-sense" means: money, wall-clock time, energy, CO2 equivalent emissions, and water.
+
+Every numeric quantity in a cost model carries one of four honesty statuses:
+- measured — recorded from an actual run on the target system
+- estimated — derived from sourced assumptions, with a source URL and retrieval date
+- placeholder — a structural stand-in; not a real number
+- TODO — a human must supply this before the model can be trusted
+
+A weakest-link rule propagates: a derived value can never claim a stronger status than the worst of its inputs.
+
+## Key CLI commands
+
+```
+cost-running audit <path|github-url>   # detect languages, archetype, paid services → scaffold model
+cost-running measure -- python train.py  # measure a representative run (RAPL / getrusage)
+cost-running validate cost_of_running.yaml
+cost-running render cost_of_running.yaml --format html --output report.html
+cost-running diff old.yaml new.yaml    # drift gate (exit 1 if any dim changed >10%)
+cost-running catalog scrape            # fetch public leaderboard benchmarks (HF Open LLM, Arena)
+```
+
+## Resources
+
+- GitHub: https://github.com/warith-harchaoui/cost-running
+- Author: Warith Harchaoui, Ph.D. — https://www.linkedin.com/in/warith-harchaoui/
+- License: BSD-3-Clause

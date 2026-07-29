@@ -397,3 +397,79 @@ def add_service(entry: dict, *, overlay: Path | None = None) -> Path:
     target = overlay / "services.yaml"
     _append_row(target, "services", entry)
     return target
+
+
+# ---------------------------------------------------------------------------
+# Leaderboard / benchmark catalog
+# ---------------------------------------------------------------------------
+
+# Leaderboard rows age quickly (a new model ships every day); treat them as fresh
+# for 7 days so a weekly scrape keeps the catalog current.
+STALE_DAYS_BY_KIND["leaderboard"] = 7
+
+_LEADERBOARD_FILENAME: str = "leaderboard.yaml"
+
+
+def leaderboard_path(overlay: Path | None = None) -> Path:
+    """Return the path of the leaderboard YAML file in the overlay directory."""
+    return (overlay if overlay is not None else overlay_dir()) / _LEADERBOARD_FILENAME
+
+
+def save_leaderboard(
+    rows: list[dict],
+    source_key: str,
+    *,
+    overlay: Path | None = None,
+) -> Path:
+    """Persist a batch of leaderboard rows to the overlay catalog.
+
+    Rows from the same ``source_key`` replace previous rows from that source,
+    so a weekly scrape always reflects the latest snapshot without accumulating
+    duplicates. Rows from other sources are preserved.
+
+    Parameters
+    ----------
+    rows : list of dict
+        The model rows returned by a fetcher in :mod:`.arenas`.
+    source_key : str
+        The fetcher key (e.g. ``"hf_leaderboard"``).  Used to namespace rows
+        so sources do not overwrite each other.
+    overlay : pathlib.Path or None, optional
+        Overlay directory. Defaults to :func:`overlay_dir`.
+
+    Returns
+    -------
+    pathlib.Path
+        The file the rows were written to.
+    """
+    path = leaderboard_path(overlay)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = _load_yaml(path)
+    # Replace rows for this source; keep rows from other sources.
+    existing: list[dict] = [
+        r for r in data.get("models", []) if r.get("_source_key") != source_key
+    ]
+    tagged = [{**r, "_source_key": source_key} for r in rows]
+    data["models"] = existing + tagged
+    data["last_updated"] = date.today().isoformat()
+    with open(path, "w", encoding="utf-8") as handle:
+        yaml.dump(data, handle, sort_keys=False, allow_unicode=True)
+    return path
+
+
+def load_leaderboard(overlay: Path | None = None) -> list[dict]:
+    """Return all model rows from the leaderboard catalog.
+
+    Parameters
+    ----------
+    overlay : pathlib.Path or None, optional
+        Overlay directory. Defaults to :func:`overlay_dir`.
+
+    Returns
+    -------
+    list of dict
+        All stored model rows, or an empty list when the catalog has not been
+        populated yet (run ``cost-running catalog scrape`` first).
+    """
+    data = _load_yaml(leaderboard_path(overlay))
+    return data.get("models", [])

@@ -115,3 +115,48 @@ def test_stale_rows_scan_groups_by_category():
     assert stale["services"], "expected unsourced bundled services to be flagged"
     # Bundled hardware was sourced recently, so nothing hardware-side is stale yet.
     assert stale["gpus"] == []
+
+
+def test_save_and_load_leaderboard(tmp_path):
+    rows = [
+        {"model": "org/model-A", "average_score": 42.5, "co2_kg": 1.2,
+         "source": "https://hf.co/datasets/...", "retrieved_date": "2026-07-29"},
+        {"model": "org/model-B", "average_score": 67.1, "co2_kg": 3.4,
+         "source": "https://hf.co/datasets/...", "retrieved_date": "2026-07-29"},
+    ]
+    target = registry.save_leaderboard(rows, "hf_leaderboard", overlay=tmp_path)
+    assert target.exists()
+    loaded = registry.load_leaderboard(overlay=tmp_path)
+    assert len(loaded) == 2
+    models = {r["model"] for r in loaded}
+    assert models == {"org/model-A", "org/model-B"}
+
+
+def test_save_leaderboard_replaces_same_source(tmp_path):
+    # A second save from the same source replaces previous rows, no duplicates.
+    first = [{"model": "m1", "source": "https://s", "retrieved_date": "2026-07-28"}]
+    second = [{"model": "m2", "source": "https://s", "retrieved_date": "2026-07-29"}]
+    registry.save_leaderboard(first, "hf_leaderboard", overlay=tmp_path)
+    registry.save_leaderboard(second, "hf_leaderboard", overlay=tmp_path)
+    loaded = registry.load_leaderboard(overlay=tmp_path)
+    models = {r["model"] for r in loaded}
+    assert models == {"m2"}  # first batch gone, second batch present
+
+
+def test_save_leaderboard_preserves_other_sources(tmp_path):
+    # Saving from source A must not delete rows from source B.
+    registry.save_leaderboard(
+        [{"model": "a1", "source": "https://a", "retrieved_date": "2026-07-29"}],
+        "hf_leaderboard", overlay=tmp_path,
+    )
+    registry.save_leaderboard(
+        [{"model": "b1", "source": "https://b", "retrieved_date": "2026-07-29"}],
+        "arena", overlay=tmp_path,
+    )
+    loaded = registry.load_leaderboard(overlay=tmp_path)
+    models = {r["model"] for r in loaded}
+    assert models == {"a1", "b1"}
+
+
+def test_leaderboard_threshold_is_weekly():
+    assert registry.stale_threshold_days("leaderboard") == 7

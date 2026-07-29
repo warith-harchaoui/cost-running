@@ -41,6 +41,7 @@ from ..application import (
 )
 from ..application.audit import audit_github_repo, audit_repo
 from ..application.measure import measure_command
+from ..infrastructure import arenas as _arenas
 from ..infrastructure import registry
 from ..infrastructure.github import is_github_ref
 from ..templates import get_template_text
@@ -262,6 +263,7 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     run = getattr(args, "run", False)
     timeout = getattr(args, "timeout", 120.0)
     target_gpu = getattr(args, "target_gpu", None)
+    source_gpu = getattr(args, "source_gpu", None)
 
     # Running repository code is the user's explicit decision, taken once. Ask
     # before anything is cloned or executed; a refusal falls back to a static
@@ -277,11 +279,13 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         if is_github_ref(args.path):
             logger.info("Cloning %s …", args.path)
             result = audit_github_repo(
-                args.path, run=run, use_llm=use_llm, timeout=timeout, target_gpu=target_gpu
+                args.path, run=run, use_llm=use_llm, timeout=timeout,
+                target_gpu=target_gpu, source_gpu=source_gpu,
             )
         else:
             result = audit_repo(
-                args.path, run=run, use_llm=use_llm, timeout=timeout, target_gpu=target_gpu
+                args.path, run=run, use_llm=use_llm, timeout=timeout,
+                target_gpu=target_gpu, source_gpu=source_gpu,
             )
     except (NotADirectoryError, OSError, RuntimeError, ValueError) as exc:
         logger.error("Cannot audit %s: %s", args.path, exc)
@@ -452,6 +456,46 @@ def _cmd_service_add(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _cmd_catalog_scrape(args: argparse.Namespace) -> int:
+    """Fetch benchmark data from public arenas/leaderboards and persist it.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed arguments with ``source``, ``limit``, ``timeout``, and ``json``.
+
+    Returns
+    -------
+    int
+        ``0`` on success, ``2`` on an unknown source key.
+    """
+    try:
+        results = _arenas.scrape(
+            sources=args.source,
+            limit=args.limit,
+            timeout=args.timeout,
+        )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return EXIT_USAGE
+
+    summary: dict[str, int] = {}
+    for source_key, rows in results.items():
+        if rows:
+            target = registry.save_leaderboard(rows, source_key)
+            logger.info(
+                "catalog scrape: %s → %d rows saved to %s.",
+                source_key, len(rows), target,
+            )
+        else:
+            logger.warning("catalog scrape: %s returned 0 rows (source may be down).", source_key)
+        summary[source_key] = len(rows)
+
+    if args.json:
+        print(json.dumps(summary, indent=2))
+    return EXIT_OK
+
+
 def make_parser() -> argparse.ArgumentParser:
     """Build the CLI parser without executing anything.
 
@@ -577,9 +621,19 @@ def make_parser() -> argparse.ArgumentParser:
         metavar="KEY",
         help=(
             "Extrapolate the projected whole-run cost onto this cloud GPU "
-            "(e.g. H100, A100-80GB). Requires --run and a capped entrypoint slice "
-            "(detected max_iters / epochs). A not-applicable note is recorded if "
-            "the local machine has no datacenter GPU or no completion projection."
+            "(e.g. H100, A100-80GB). Requires --run and a capped entrypoint slice."
+        ),
+    )
+    audit_parser.add_argument(
+        "--source-gpu",
+        default=None,
+        dest="source_gpu",
+        metavar="KEY",
+        help=(
+            "Declare the GPU the workload ran on (e.g. A100, H100). "
+            "Required when the local machine has no datacenter GPU (MacBook, "
+            "consumer GPU) and --target-gpu is also set. "
+            "Run `cost-running hardware list` to see known keys."
         ),
     )
     audit_parser.set_defaults(func=_cmd_audit)
@@ -631,6 +685,39 @@ def make_parser() -> argparse.ArgumentParser:
     )
     cat_fresh.add_argument("--json", action="store_true", help="Machine-readable output.")
     cat_fresh.set_defaults(func=_cmd_catalog_freshness)
+
+    cat_scrape = catalog_sub.add_parser(
+        "scrape",
+        help=(
+            "Fetch fresh benchmark data from public arenas and leaderboards "
+            "(HuggingFace Open LLM Leaderboard, Chatbot Arena, ...) "
+            "and save to the overlay catalog."
+        ),
+    )
+    cat_scrape.add_argument(
+        "--source",
+        nargs="+",
+        default=None,
+        metavar="KEY",
+        help=(
+            "Source(s) to fetch. Defaults to all. "
+            f"Known: {', '.join(_arenas.available_sources())}."
+        ),
+    )
+    cat_scrape.add_argument(
+        "--limit",
+        type=int,
+        default=5000,
+        help="Max rows per source (default: 5000).",
+    )
+    cat_scrape.add_argument(
+        "--timeout",
+        type=float,
+        default=15.0,
+        help="Per-request timeout in seconds (default: 15).",
+    )
+    cat_scrape.add_argument("--json", action="store_true", help="Print summary as JSON.")
+    cat_scrape.set_defaults(func=_cmd_catalog_scrape)
 
     return parser
 

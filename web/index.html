@@ -1,15 +1,127 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-color-scheme="light">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="cost-running — measure the real cost of running code: money, time, energy, carbon, water. Every number carries an honesty label.">
-  <meta property="og:title" content="cost-running">
-  <meta property="og:description" content="Measure the cost of running code in the wide sense — money, time, energy, carbon, water — with an honesty taxonomy built in.">
-  <meta property="og:type" content="website">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
   <title>cost-running — measure the cost of running code</title>
+  <meta name="description" content="cost-running measures the real cost of running code: money, time, energy, carbon, water. Every number carries a mandatory honesty label — measured, estimated, placeholder, or TODO.">
+  <link rel="canonical" href="https://harchaoui.org/warith/cost-running/">
+  <link rel="alternate" hreflang="en" href="https://harchaoui.org/warith/cost-running/">
+  <link rel="alternate" hreflang="x-default" href="https://harchaoui.org/warith/cost-running/">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0F0F14" media="(prefers-color-scheme: dark)">
+
+  <!-- No-flash theme: resolve the stored / system choice before first paint -->
+  <script>(function(){var s;try{s=localStorage.getItem('cost-running-theme');}catch(e){}if(!s)s=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-color-scheme',s);})();</script>
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="cost-running">
+  <meta property="og:title" content="cost-running — measure the cost of running code">
+  <meta property="og:description" content="Money, time, energy, carbon, water — with a mandatory honesty taxonomy built in. Open source, BSD-3-Clause.">
+  <meta property="og:url" content="https://harchaoui.org/warith/cost-running/">
+  <meta property="og:image" content="https://harchaoui.org/warith/cost-running/logo.png">
+  <meta property="og:image:alt" content="The cost-running project logo.">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="cost-running — measure the cost of running code">
+  <meta name="twitter:description" content="Money, time, energy, carbon, water — with a mandatory honesty taxonomy built in.">
+  <meta name="twitter:image" content="https://harchaoui.org/warith/cost-running/logo.png">
+
+  <!-- Favicons — the full set so every browser and OS finds what it needs -->
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
+  <link rel="manifest" href="cost-running.webmanifest">
+
+  <!-- GEO / structured data for AI overviews and search -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "name": "cost-running",
+        "url": "https://harchaoui.org/warith/cost-running/",
+        "description": "cost-running measures the real cost of running code: money, time, energy, carbon, water. Every number carries a mandatory honesty label.",
+        "inLanguage": "en",
+        "author": {
+          "@type": "Person",
+          "name": "Warith Harchaoui",
+          "url": "https://www.linkedin.com/in/warith-harchaoui/"
+        }
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "name": "cost-running",
+        "description": "A Python library and CLI for computing the wide-sense cost of running code. Dimensions: money, wall-clock time, energy (RAPL-measured or TDP-estimated), CO2 equivalent, and water. Every quantity carries a mandatory honesty status — measured, estimated, placeholder, or TODO — propagated by a weakest-link rule.",
+        "codeRepository": "https://github.com/warith-harchaoui/cost-running",
+        "programmingLanguage": "Python",
+        "license": "https://spdx.org/licenses/BSD-3-Clause.html",
+        "author": {
+          "@type": "Person",
+          "name": "Warith Harchaoui",
+          "url": "https://www.linkedin.com/in/warith-harchaoui/"
+        },
+        "keywords": ["AI cost", "energy measurement", "carbon footprint", "LLM cost", "training cost", "green AI", "code profiling", "RAPL", "honesty taxonomy"]
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What does cost-running measure?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "cost-running measures the wide-sense cost of running a piece of code: money (cloud or on-prem), wall-clock time, energy in kilowatt-hours, CO2 equivalent emissions (using local grid intensity), and water. Each dimension is optional — you measure the ones that matter for your workload."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the honesty taxonomy?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Every numeric quantity in a cost model carries one of four statuses: measured (from an actual run), estimated (from sourced assumptions with a URL and retrieval date), placeholder (a structural stand-in not to be trusted), or TODO (must be filled by a human). A weakest-link rule propagates: a derived value can never claim a stronger status than the worst of its inputs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I audit a GitHub repository?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Run: cost-running audit https://github.com/owner/repo --output cost_of_running.yaml. The tool detects languages, archetype (training, inference, api-service, cli-tool, library), and paid services (OpenAI, Anthropic, AWS, etc.), then scaffolds a pre-filled cost model with pricing-source URLs ready to complete."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How is energy measured?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "On Linux, cost-running reads RAPL (Running Average Power Limit) counters to get system-package energy during the run — this is labelled estimated, not measured, because system-package attribution does not equal process attribution. The label is always stated. On macOS and Windows, it falls back to a TDP-based estimate, also clearly labelled."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use it in CI to gate on cost drift?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. cost-running diff old.yaml new.yaml exits 1 when any cost dimension drifted more than 10% (configurable). Wire it into your pipeline as a drift gate: if training cost doubled between two PRs, you know before merging."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
   <style>
-    /* ===== Design tokens — sprezzature palette ===== */
+    /* ===== Design tokens ===== */
     :root {
       --bg: #F8F8F8;
       --surface: #FFFFFF;
@@ -30,241 +142,164 @@
       --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
       --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0F0F14;
-        --surface: #1C1C24;
-        --text: #EFEFEF;
-        --text-muted: #999;
-        --border: #2A2A36;
-        --accent: #4DA3FF;
-        --accent-light: #003366;
-        --measured: #4DA3FF;
-        --estimated: #FFB340;
-        --placeholder: #AAAAAA;
-        --todo: #FF6B60;
-        --green: #5CE870;
-        --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
-        --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
-      }
+    [data-color-scheme="dark"] {
+      --bg: #0F0F14;
+      --surface: #1C1C24;
+      --text: #EFEFEF;
+      --text-muted: #999;
+      --border: #2A2A36;
+      --accent: #4DA3FF;
+      --accent-light: #003366;
+      --measured: #4DA3FF;
+      --estimated: #FFB340;
+      --placeholder: #AAAAAA;
+      --todo: #FF6B60;
+      --green: #5CE870;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
     }
 
     /* ===== Reset ===== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { font-size: 16px; scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
     body {
       font-family: var(--font-sans);
       background: var(--bg);
       color: var(--text);
       line-height: 1.65;
+      transition: background 0.2s, color 0.2s;
     }
 
     /* ===== Skip link ===== */
     .skip-link {
-      position: absolute;
-      top: -40px;
-      left: 0;
-      padding: 8px 16px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 0.875rem;
-      transition: top 0.15s;
+      position: absolute; top: -40px; left: 0;
+      padding: 8px 16px; background: var(--accent); color: #fff;
+      font-size: 0.875rem; transition: top 0.15s; z-index: 200;
     }
     .skip-link:focus { top: 0; }
 
     /* ===== Nav ===== */
     nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: var(--surface);
+      position: sticky; top: 0; z-index: 100;
+      background: color-mix(in srgb, var(--surface) 85%, transparent);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
       border-bottom: 1px solid var(--border);
       padding: 0 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 56px;
-      box-shadow: var(--shadow-sm);
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px; box-shadow: var(--shadow-sm);
     }
     .nav-brand {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--accent);
-      text-decoration: none;
-      letter-spacing: -0.01em;
+      display: flex; align-items: center; gap: 0.6rem;
+      font-size: 1rem; font-weight: 700; color: var(--accent);
+      text-decoration: none; letter-spacing: -0.01em;
     }
+    .nav-brand img { border-radius: 6px; flex-shrink: 0; }
     .nav-brand span { color: var(--text); font-weight: 400; }
+    .nav-right { display: flex; align-items: center; gap: 1rem; }
     .nav-links { display: flex; gap: 1.5rem; list-style: none; }
     .nav-links a {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      text-decoration: none;
-      transition: color 0.15s;
+      font-size: 0.875rem; color: var(--text-muted); text-decoration: none;
+      transition: color 0.15s; border-radius: 4px; padding: 0.15rem 0.3rem;
     }
     .nav-links a:hover, .nav-links a:focus { color: var(--accent); }
+    .nav-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    #theme-toggle {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.1rem; padding: 0.3rem 0.5rem; border-radius: 6px;
+      color: var(--text-muted); transition: background 0.15s;
+    }
+    #theme-toggle:hover { background: var(--border); }
+    #theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     /* ===== Hero ===== */
     .hero {
       padding: 5rem 1.5rem 2.5rem;
-      max-width: 860px;
-      margin: 0 auto;
-      text-align: center;
+      max-width: 860px; margin: 0 auto; text-align: center;
+    }
+    .hero-logo {
+      width: 96px; height: 96px; border-radius: 22px;
+      margin: 0 auto 1.5rem; display: block;
+      box-shadow: var(--shadow-md);
     }
     .hero-eyebrow {
-      display: inline-block;
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--accent);
-      background: var(--accent-light);
-      padding: 0.25rem 0.75rem;
-      border-radius: 20px;
-      margin-bottom: 1.25rem;
+      display: inline-block; font-size: 0.75rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--accent); background: var(--accent-light);
+      padding: 0.25rem 0.75rem; border-radius: 20px; margin-bottom: 1.25rem;
     }
     .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.25rem);
-      font-weight: 800;
-      line-height: 1.15;
-      letter-spacing: -0.025em;
-      margin-bottom: 1.25rem;
+      font-size: clamp(2rem, 5vw, 3.25rem); font-weight: 800;
+      line-height: 1.15; letter-spacing: -0.025em; margin-bottom: 1.25rem;
     }
     .hero h1 code {
-      font-family: var(--font-mono);
-      font-weight: 700;
-      color: var(--accent);
-      font-size: 0.92em;
-      background: var(--accent-light);
-      padding: 0.05em 0.3em;
-      border-radius: 6px;
+      font-family: var(--font-mono); font-weight: 700; color: var(--accent);
+      font-size: 0.92em; background: var(--accent-light);
+      padding: 0.05em 0.3em; border-radius: 6px;
     }
     .hero-sub {
-      font-size: 1.125rem;
-      color: var(--text-muted);
-      max-width: 600px;
-      margin: 0 auto 2rem;
+      font-size: 1.125rem; color: var(--text-muted);
+      max-width: 600px; margin: 0 auto 2rem;
     }
     .hero-actions {
-      display: flex;
-      gap: 0.75rem;
-      justify-content: center;
-      flex-wrap: wrap;
+      display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;
     }
     .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.7rem 1.4rem;
-      border-radius: var(--radius);
-      font-size: 0.9375rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: opacity 0.15s, box-shadow 0.15s;
-      cursor: pointer;
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.7rem 1.4rem; border-radius: var(--radius);
+      font-size: 0.9375rem; font-weight: 600; text-decoration: none;
+      transition: opacity 0.15s, box-shadow 0.15s, transform 0.15s; cursor: pointer;
     }
-    .btn:hover { opacity: 0.85; box-shadow: var(--shadow-md); }
+    .btn:hover { opacity: 0.85; box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
     .btn-primary { background: var(--accent); color: #fff; }
-    .btn-secondary {
-      background: var(--surface);
-      color: var(--text);
-      border: 1.5px solid var(--border);
-    }
+    .btn-secondary { background: var(--surface); color: var(--text); border: 1.5px solid var(--border); }
 
     /* ===== Layout ===== */
     .container { max-width: 1040px; margin: 0 auto; padding: 0 1.5rem; }
     section { padding: 3rem 0; }
     section + section { border-top: 1px solid var(--border); }
-    h2 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      letter-spacing: -0.015em;
-      margin-bottom: 0.5rem;
-    }
-    .section-sub {
-      font-size: 1rem;
-      color: var(--text-muted);
-      margin-bottom: 2.5rem;
-      max-width: 560px;
-    }
+    h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.015em; margin-bottom: 0.5rem; }
+    .section-sub { font-size: 1rem; color: var(--text-muted); margin-bottom: 2.5rem; max-width: 560px; }
 
     /* ===== Honesty taxonomy ===== */
-    .taxonomy-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-    }
+    .taxonomy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
     .taxonomy-card {
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem;
-      box-shadow: var(--shadow-sm);
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem; box-shadow: var(--shadow-sm);
     }
     .taxonomy-card .badge {
-      display: inline-block;
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      padding: 0.2rem 0.55rem;
-      border-radius: 5px;
-      margin-bottom: 0.6rem;
+      display: inline-block; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.04em; text-transform: uppercase;
+      padding: 0.2rem 0.55rem; border-radius: 5px; margin-bottom: 0.6rem;
     }
     .badge-measured   { background: #CCE4FF; color: #004999; }
     .badge-estimated  { background: #FFF0CC; color: #7A4800; }
     .badge-placeholder{ background: #EEEEEE; color: #444; }
     .badge-todo       { background: #FFD8D6; color: #8B0000; }
-    @media (prefers-color-scheme: dark) {
-      .badge-measured   { background: #003366; color: #7FC3FF; }
-      .badge-estimated  { background: #5A3400; color: #FFD080; }
-      .badge-placeholder{ background: #2A2A2A; color: #BBBBBB; }
-      .badge-todo       { background: #5C0000; color: #FF9999; }
-    }
-    .taxonomy-card h3 {
-      font-size: 0.9375rem;
-      font-weight: 600;
-      margin-bottom: 0.35rem;
-    }
-    .taxonomy-card p { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; }
+    [data-color-scheme="dark"] .badge-measured   { background: #003366; color: #7FC3FF; }
+    [data-color-scheme="dark"] .badge-estimated  { background: #5A3400; color: #FFD080; }
+    [data-color-scheme="dark"] .badge-placeholder{ background: #2A2A2A; color: #BBBBBB; }
+    [data-color-scheme="dark"] .badge-todo       { background: #5C0000; color: #FF9999; }
+    .taxonomy-card h3 { font-size: 0.9375rem; font-weight: 600; margin-bottom: 0.35rem; }
+    .taxonomy-card p  { font-size: 0.875rem; color: var(--text-muted); line-height: 1.5; }
 
     /* ===== Features grid ===== */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.25rem;
-    }
+    .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; }
     .feature-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      box-shadow: var(--shadow-sm);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow-sm);
     }
-    .feature-icon {
-      font-size: 1.75rem;
-      margin-bottom: 0.75rem;
-    }
-    .feature-card h3 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 0.4rem;
-    }
-    .feature-card p { font-size: 0.875rem; color: var(--text-muted); }
+    .feature-icon { font-size: 1.75rem; margin-bottom: 0.75rem; }
+    .feature-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .feature-card p  { font-size: 0.875rem; color: var(--text-muted); }
 
     /* ===== Code block ===== */
     .code-panel {
-      background: #0D1117;
-      border-radius: var(--radius);
-      padding: 1.5rem;
-      overflow-x: auto;
-      box-shadow: var(--shadow-md);
+      background: #0D1117; border-radius: var(--radius);
+      padding: 1.5rem; overflow-x: auto; box-shadow: var(--shadow-md);
     }
-    .code-panel pre {
-      font-family: var(--font-mono);
-      font-size: 0.875rem;
-      line-height: 1.7;
-      color: #C9D1D9;
-    }
+    .code-panel pre { font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.7; color: #C9D1D9; }
     .code-panel .c  { color: #8B949E; }
     .code-panel .kw { color: #FF7B72; }
     .code-panel .s  { color: #A5D6FF; }
@@ -273,111 +308,57 @@
 
     /* ===== Workflow diagram ===== */
     .workflow {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin: 2rem 0;
+      display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+      justify-content: center; margin: 2rem 0;
     }
     .workflow-step {
-      background: var(--surface);
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 0.6rem 1rem;
-      font-size: 0.875rem;
-      font-weight: 600;
-      font-family: var(--font-mono);
-      color: var(--accent);
-      white-space: nowrap;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 0.6rem 1rem;
+      font-size: 0.875rem; font-weight: 600; font-family: var(--font-mono);
+      color: var(--accent); white-space: nowrap;
     }
-    .workflow-arrow {
-      color: var(--text-muted);
-      font-size: 1.2rem;
-      padding: 0 0.5rem;
-    }
+    .workflow-arrow { color: var(--text-muted); font-size: 1.2rem; padding: 0 0.5rem; }
 
     /* ===== Gallery ===== */
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 1.25rem;
-    }
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.25rem; }
     .gallery-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 1.25rem 1.5rem;
-      box-shadow: var(--shadow-sm);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.5rem; box-shadow: var(--shadow-sm);
     }
     .gallery-card h3 {
-      font-size: 0.9375rem;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      color: var(--accent);
-      margin-bottom: 0.75rem;
+      font-size: 0.9375rem; font-weight: 700; font-family: var(--font-mono);
+      color: var(--accent); margin-bottom: 0.75rem;
     }
-    .gallery-card h3 a {
-      color: inherit;
-      text-decoration: none;
-    }
+    .gallery-card h3 a { color: inherit; text-decoration: none; }
     .gallery-card h3 a:hover { text-decoration: underline; }
-    .gallery-meta {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-      margin-bottom: 0.75rem;
-    }
+    .gallery-meta { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
     .tag {
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 0.2rem 0.55rem;
-      border-radius: 20px;
-      background: var(--accent-light);
-      color: var(--accent);
+      font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.55rem;
+      border-radius: 20px; background: var(--accent-light); color: var(--accent);
     }
-    .tag-service {
-      background: var(--border);
-      color: var(--text-muted);
-    }
+    .tag-service { background: var(--border); color: var(--text-muted); }
     .gallery-card p { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.55; }
 
     /* ===== Status table ===== */
     .status-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
     .status-table th {
-      text-align: left;
-      padding: 0.5rem 0.75rem;
-      background: var(--border);
-      font-weight: 600;
+      text-align: left; padding: 0.5rem 0.75rem;
+      background: var(--border); font-weight: 600;
     }
-    .status-table td {
-      padding: 0.45rem 0.75rem;
-      border-bottom: 1px solid var(--border);
-    }
+    .status-table td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); }
     .status-table tr:last-child td { border-bottom: none; }
-    .pill {
-      display: inline-block;
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 0.15rem 0.5rem;
-      border-radius: 20px;
-    }
+    .pill { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 0.15rem 0.5rem; border-radius: 20px; }
     .pill-working    { background: #D4F5D9; color: #1A5C26; }
     .pill-planned    { background: #EEEEEE; color: #555; }
     .pill-draft      { background: #FFF0CC; color: #7A4800; }
-    @media (prefers-color-scheme: dark) {
-      .pill-working    { background: #1A3D1F; color: #7EDB8A; }
-      .pill-planned    { background: #2A2A2A; color: #AAAAAA; }
-      .pill-draft      { background: #3D2E00; color: #FFD080; }
-    }
+    [data-color-scheme="dark"] .pill-working    { background: #1A3D1F; color: #7EDB8A; }
+    [data-color-scheme="dark"] .pill-planned    { background: #2A2A2A; color: #AAAAAA; }
+    [data-color-scheme="dark"] .pill-draft      { background: #3D2E00; color: #FFD080; }
 
     /* ===== Footer ===== */
     footer {
-      border-top: 1px solid var(--border);
-      padding: 2.5rem 1.5rem;
-      text-align: center;
-      font-size: 0.825rem;
-      color: var(--text-muted);
+      border-top: 1px solid var(--border); padding: 2.5rem 1.5rem;
+      text-align: center; font-size: 0.825rem; color: var(--text-muted);
     }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
@@ -395,25 +376,32 @@
 <a class="skip-link" href="#main">Skip to content</a>
 
 <nav aria-label="Site navigation">
-  <a class="nav-brand" href="#" aria-label="cost-running home">cost<span>-running</span></a>
-  <ul class="nav-links">
-    <li><a href="#why">Why</a></li>
-    <li><a href="#taxonomy">Honesty</a></li>
-    <li><a href="#workflow">Workflow</a></li>
-    <li><a href="#gallery">Gallery</a></li>
-    <li><a href="#install">Install</a></li>
-    <li><a href="https://github.com/warith-harchaoui/cost-running">⭐️ on GitHub</a></li>
-  </ul>
+  <a class="nav-brand" href="#" aria-label="cost-running home">
+    <img src="logo.png" alt="" width="32" height="32" aria-hidden="true">
+    cost<span>-running</span>
+  </a>
+  <div class="nav-right">
+    <ul class="nav-links">
+      <li><a href="#why">Why</a></li>
+      <li><a href="#taxonomy">Honesty</a></li>
+      <li><a href="#workflow">Workflow</a></li>
+      <li><a href="#gallery">Gallery</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="https://github.com/warith-harchaoui/cost-running">⭐️ GitHub</a></li>
+    </ul>
+    <button id="theme-toggle" type="button" aria-label="Switch theme">🌞</button>
+  </div>
 </nav>
 
 <main id="main">
 
   <!-- Hero -->
   <div class="hero">
+    <img src="logo.png" alt="cost-running logo" class="hero-logo" width="96" height="96">
     <p class="hero-eyebrow">Open source · BSD 3-Clause</p>
     <h1>Measure the cost of running <code>code</code></h1>
     <p class="hero-sub">
-      Cost is 💰 money, ⏳ time, 🪫 energy, 💨 CO2 and even 💧 water
+      Cost is 💰 money, ⏳ time, 🪫 energy, 💨 CO₂ and even 💧 water
     </p>
     <div class="hero-actions">
       <a class="btn btn-primary" href="#install">Get started</a>
@@ -520,9 +508,7 @@
   <section id="workflow">
     <div class="container">
       <h2>The near-term workflow</h2>
-      <p class="section-sub">
-        The most valuable path through the tool, in order.
-      </p>
+      <p class="section-sub">The most valuable path through the tool, in order.</p>
       <div class="workflow" role="img" aria-label="Workflow: audit, measure, fill assumptions, validate, render, diff in CI">
         <div class="workflow-step">audit</div>
         <div class="workflow-arrow" aria-hidden="true">→</div>
@@ -644,6 +630,7 @@ cost-running render cost_of_running.yaml --format html --output report.html</pre
           <tr><td>Honesty validation (status, weakest-link, non-negative, provenance)</td><td><span class="pill pill-working">Working</span></td></tr>
           <tr><td>Local hardware detection + grounded GPU extrapolation</td><td><span class="pill pill-working">Working</span></td></tr>
           <tr><td>Community catalog (hardware + services)</td><td><span class="pill pill-working">Working</span></td></tr>
+          <tr><td>Public leaderboard scraper (<code>catalog scrape</code>): HF Open LLM Leaderboard, Arena</td><td><span class="pill pill-working">Working</span></td></tr>
           <tr><td>DOCX + PDF reports (md2star)</td><td><span class="pill pill-planned">Planned</span></td></tr>
           <tr><td>Currency-bearing quantities + auto FX rates (schema 1.1)</td><td><span class="pill pill-planned">Planned</span></td></tr>
           <tr><td>Custom dimensions end-to-end (schema 1.1)</td><td><span class="pill pill-planned">Planned</span></td></tr>
@@ -662,9 +649,25 @@ cost-running render cost_of_running.yaml --format html --output report.html</pre
   <p>
     <strong>cost-running</strong> is released under the
     <a href="https://github.com/warith-harchaoui/cost-running/blob/master/LICENSE">BSD 3-Clause License</a>.
-    Built by <a href="https://www.linkedin.com/in/warith-harchaoui/">Warith Harchaoui, Ph.D.</a>.
+    Built by <a href="https://www.linkedin.com/in/warith-harchaoui/">Warith Harchaoui, Ph.D.</a>
   </p>
 </footer>
 
+<script>
+  (function () {
+    const btn = document.getElementById('theme-toggle');
+    function applyTheme(t) {
+      document.documentElement.setAttribute('data-color-scheme', t);
+      btn.textContent = t === 'dark' ? '🌙' : '🌞';
+      btn.setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+      try { localStorage.setItem('cost-running-theme', t); } catch (e) {}
+    }
+    // Sync button to initial state (already applied by the inline script).
+    applyTheme(document.documentElement.getAttribute('data-color-scheme') || 'light');
+    btn.addEventListener('click', function () {
+      applyTheme(document.documentElement.getAttribute('data-color-scheme') === 'dark' ? 'light' : 'dark');
+    });
+  })();
+</script>
 </body>
 </html>

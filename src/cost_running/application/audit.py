@@ -212,6 +212,22 @@ def _apply_slice_measurement(model: dict[str, Any], slice_result: SliceResult) -
     # Only project the whole run when the slice itself succeeded; a failed run
     # (e.g. the entrypoint did not recognise --max_iters) measured power but
     # did not cover the claimed fraction of the work.
+    if (
+        completion is not None
+        and completion.applicable
+        and m.workload_exit_code != 0
+        and slice_result.fraction_completed is not None
+    ):
+        # The entrypoint ran but failed: power is recorded, projection is not.
+        # Leave a note so the user knows why the completion block is absent.
+        cmd_str = " ".join(str(c) for c in m.command)
+        model["analysis"].setdefault("run_note", (
+            f"Entrypoint exited with code {m.workload_exit_code} "
+            f"(`{cmd_str}`); the capped slice did not complete cleanly "
+            "so the whole-run projection was skipped. "
+            "The entrypoint may not accept the cap flag — "
+            "check that it supports the argument shown in the command."
+        ))
     if completion is not None and completion.applicable and m.workload_exit_code == 0:
         model["scenario"]["runtime_seconds"] = {
             "value": round(completion.runtime_seconds, 3),
@@ -289,12 +305,14 @@ def _maybe_apply_gpu_extrapolation(
     model: dict[str, Any],
     slice_result: SliceResult,
     target_gpu: str,
+    source_gpu: str | None = None,
 ) -> None:
     """Attempt the local→cloud extrapolation, recording why it is not applicable when blocked.
 
-    Requires a whole-run completion projection (i.e. the slice ran with a known
-    ``fraction_completed``) and a datacenter GPU on the local machine to act as
-    the source. Records a ``cloud_scenario`` block either way.
+    Requires a whole-run completion projection and a source GPU key. The source GPU
+    is either detected from the local hardware or supplied explicitly via
+    ``source_gpu`` — which lets users on MacBooks or consumer-GPU machines still
+    get the cloud extrapolation by telling the tool what GPU they were *simulating*.
 
     Parameters
     ----------
@@ -304,6 +322,10 @@ def _maybe_apply_gpu_extrapolation(
         The measured slice (may or may not have a completion projection).
     target_gpu : str
         The catalog key of the target cloud GPU (e.g. ``H100``).
+    source_gpu : str or None, optional
+        The catalog key of the source GPU. When ``None`` the local hardware is
+        probed; when given it overrides detection so the extrapolation is possible
+        even without a datacenter GPU in the machine.
     """
     from ..infrastructure.hardware import detect_local_hardware
 
@@ -320,20 +342,24 @@ def _maybe_apply_gpu_extrapolation(
         }
         return
 
-    hw = detect_local_hardware()
-    if hw.gpu_power_key is None:
+    # Resolve the source GPU: explicit override wins over hardware detection.
+    if source_gpu is None:
+        hw = detect_local_hardware()
+        source_gpu = hw.gpu_power_key
+    if source_gpu is None:
         model["cloud_scenario"] = {
             "target_gpu": target_gpu,
             "applicable": False,
             "reasons": [
-                "No datacenter GPU detected on the source machine; "
-                "cannot re-base the runtime by throughput ratio."
+                "No datacenter GPU detected on the source machine. "
+                "Pass --source-gpu KEY (e.g. A100) to enable extrapolation "
+                "when the local machine has no datacenter GPU."
             ],
             "status": "estimated",
         }
         return
 
-    _apply_gpu_extrapolation(model, completion, hw.gpu_power_key, target_gpu)
+    _apply_gpu_extrapolation(model, completion, source_gpu, target_gpu)
 
 
 def audit_repo(
@@ -343,6 +369,7 @@ def audit_repo(
     use_llm: bool = True,
     timeout: float = 120.0,
     target_gpu: str | None = None,
+    source_gpu: str | None = None,
 ) -> AuditResult:
     """Audit a local repository and produce a scaffold cost model.
 
@@ -366,9 +393,13 @@ def audit_repo(
     target_gpu : str or None, optional
         When given (e.g. ``"H100"``), add a ``cloud_scenario`` block that
         extrapolates the projected whole-run cost onto that GPU. Requires
-        ``run=True``, a capped entrypoint slice (so a ``fraction_completed`` is
-        known), and a datacenter GPU on the local machine; missing any of these
-        records a not-applicable ``cloud_scenario`` with the reason.
+        ``run=True`` and a capped entrypoint slice (so a ``fraction_completed`` is
+        known). Missing conditions record a not-applicable ``cloud_scenario``.
+    source_gpu : str or None, optional
+        Catalog key of the GPU the workload ran on (e.g. ``"A100"``). When
+        ``None``, the local hardware is probed automatically. Explicit override
+        lets users on MacBooks or consumer-GPU machines still get the cloud
+        extrapolation by declaring what GPU they are simulating.
 
     Returns
     -------
@@ -480,7 +511,9 @@ def audit_repo(
         if slice_result is not None:
             _apply_slice_measurement(model, slice_result)
             if target_gpu:
-                _maybe_apply_gpu_extrapolation(model, slice_result, target_gpu)
+                _maybe_apply_gpu_extrapolation(
+                    model, slice_result, target_gpu, source_gpu=source_gpu
+                )
 
     return AuditResult(
         name=repo.resolve().name,
@@ -562,6 +595,7 @@ def audit_github_repo(
     use_llm: bool = True,
     timeout: float = 120.0,
     target_gpu: str | None = None,
+    source_gpu: str | None = None,
 ) -> AuditResult:
     """Clone a public GitHub repository and audit it.
 
@@ -597,7 +631,10 @@ def audit_github_repo(
 
     owner, repo_name = parse_github_ref(ref)
     with cloned_repo(ref) as path:
-        result = audit_repo(path, run=run, use_llm=use_llm, timeout=timeout, target_gpu=target_gpu)
+        result = audit_repo(
+            path, run=run, use_llm=use_llm, timeout=timeout,
+            target_gpu=target_gpu, source_gpu=source_gpu,
+        )
     # Replace the temp-dir basename with the real repo name.
     result.name = repo_name
     result.model["project_name"] = repo_name

@@ -1,0 +1,12 @@
+/* TEAM */
+Author: Warith Harchaoui, Ph.D.
+Contact: warith.harchaoui [at] gmail.com
+LinkedIn: https://www.linkedin.com/in/warith-harchaoui/
+Location: France
+
+/* THANKS */
+Community contributors — see CHANGELOG.md on GitHub.
+
+/* SITE */
+Standards: HTML5, CSS3, JSON-LD
+Software: Python, BSD-3-Clause
