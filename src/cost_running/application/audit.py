@@ -36,6 +36,7 @@ from ..infrastructure.detect import (
 )
 from ..infrastructure.github import cloned_repo
 from .execution import SliceResult, has_run_consent, run_slice
+from .extrapolate import CompletionResult, extrapolate_gpu
 
 # Per-archetype seeds: active power (W), runtime (s), and an instance label. These
 # are starting points, honest as estimates and nothing more; a human replaces
@@ -242,7 +243,7 @@ def _apply_slice_measurement(model: dict[str, Any], slice_result: SliceResult) -
 
 def _apply_gpu_extrapolation(
     model: dict[str, Any],
-    completion: "CompletionResult",
+    completion: CompletionResult,
     source_gpu_key: str,
     target_gpu: str,
 ) -> None:
@@ -259,8 +260,6 @@ def _apply_gpu_extrapolation(
     target_gpu : str
         The catalog key of the target cloud GPU (e.g. ``H100``).
     """
-    from .extrapolate import extrapolate_gpu
-
     result = extrapolate_gpu(
         source_gpu=source_gpu_key,
         target_gpu=target_gpu,
@@ -551,7 +550,9 @@ def _maybe_run_slice(
         )
         return None
 
-    return run_slice(repo, command, timeout=timeout, profile=True, fraction_completed=fraction_completed)
+    return run_slice(
+        repo, command, timeout=timeout, profile=True, fraction_completed=fraction_completed
+    )
 
 
 def audit_github_repo(

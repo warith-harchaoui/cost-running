@@ -155,7 +155,8 @@ def test_audit_capped_entrypoint_projects_completion(tmp_path, monkeypatch):
     scenario = result.model["scenario"]
     runtime = scenario["runtime_seconds"]
     assert runtime["status"] == "estimated"
-    assert "slice" in runtime.get("notes", "").lower() or "fraction" in runtime.get("notes", "").lower()
+    notes = runtime.get("notes", "").lower()
+    assert "slice" in notes or "fraction" in notes
     assert validate_model(result.model).is_valid()
 
 
@@ -170,7 +171,8 @@ def test_audit_target_gpu_without_local_gpu_records_not_applicable(tmp_path, mon
         hardware,
         "detect_local_hardware",
         lambda: hardware.HardwareProfile(
-            cpu_model=None, core_count=None, memory_gb=None, gpu_model=None, gpu_power_key=None
+            os="unknown", arch="unknown", cpu_model=None, logical_cores=None,
+            memory_gb=None, gpu_model=None, cpu_power_key=None, gpu_power_key=None
         ),
     )
     repo = _make_repo(

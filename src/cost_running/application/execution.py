@@ -257,7 +257,10 @@ def _read_profile(out_path: Path, top: int = 8) -> list[ProfileEntry]:
 
     try:
         stats = pstats.Stats(str(out_path))
-    except (OSError, ValueError, TypeError):
+    except (OSError, ValueError, TypeError, EOFError):
+        # EOFError: the profile file is empty — happens when _wrap_with_cprofile
+        # left the command unwrapped (no -m flag) but the temp file was still
+        # created. The slice is still measured; the profile is a bonus.
         return []
     stats.sort_stats("cumulative")
 
